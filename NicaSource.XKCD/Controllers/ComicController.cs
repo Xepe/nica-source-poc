@@ -34,7 +34,7 @@ namespace NicaSource.XKCD.Controllers
                 var lastComicInformation = await _comicService.GetComicInformationAsync(_lastComicUrl);
 
                 var nextComicNumber = await _comicService.GetComicNumberAsync(lastComicInformation.Num, id, true, _templateUrl);
-                var previousComicNumber = await _comicService.GetComicNumberAsync(lastComicInformation.Num, id, false, _templateUrl);
+                var previousComicNumber = await _comicService.GetComicNumberAsync(0, id, false, _templateUrl);
 
                 response.Result = comicInformation;
                 response.NextPage = nextComicNumber;
@@ -46,6 +46,16 @@ namespace NicaSource.XKCD.Controllers
             {
                 throw e;
             }
+        }
+
+        protected override void OnException(ExceptionContext filterContext)
+        {
+            filterContext.ExceptionHandled = true;
+            filterContext.Result = RedirectToAction("Index", "ErrorHandler");
+            filterContext.Result = new ViewResult
+            {
+                ViewName = "~/Views/Shared/Error.cshtml"
+            };
         }
     }
 }

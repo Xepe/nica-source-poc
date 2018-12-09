@@ -10,9 +10,7 @@ namespace NicaSource.XKCD.Services
     {
         public async Task<int> GetComicNumberAsync(int lastComicNumber, int currentComicNumber, bool isNext, string url)
         {
-            var min = isNext ? currentComicNumber : 0;
-
-            if (lastComicNumber == min)
+            if (lastComicNumber == currentComicNumber)
             {
                 return 0;
             }

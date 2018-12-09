@@ -27,7 +27,7 @@ namespace NicaSource.XKCD.Controllers
 
             var lastComicInformation = await _comicService.GetComicInformationAsync(_lastComicUrl);
             var nextComicNumber = await _comicService.GetComicNumberAsync(lastComicInformation.Num, lastComicInformation.Num, true, _templateUrl);
-            var previousComicNumber = await _comicService.GetComicNumberAsync(lastComicInformation.Num, lastComicInformation.Num, false, _templateUrl);
+            var previousComicNumber = await _comicService.GetComicNumberAsync(0, lastComicInformation.Num, false, _templateUrl);
 
             response.Result = lastComicInformation;
             response.NextPage = nextComicNumber;
