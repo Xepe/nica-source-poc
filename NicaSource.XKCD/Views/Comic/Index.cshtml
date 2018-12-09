@@ -1,0 +1,31 @@
+﻿
+@{
+    ViewBag.Title = "Comic";
+}
+
+<div class="row">
+    <div class="col-md-12">
+        <div style="margin: 0 auto; width: 90%; text-align: center;">
+            <h1>@Html.Raw(Model.Result.Title)</h1>
+            <figure>
+                <img src="@Url.Content(Model.Result.Img)"
+                     alt="@Url.Content(Model.Result.Alt)" />
+                <figcaption class="figure-caption text-center">@Html.Raw(Model.Result.Alt)</figcaption>
+            </figure>
+
+            @if (Model.NextPage != 0)
+            {
+                <p class="pull-right">
+                    @Html.ActionLink("Next", "Index", "Comic", routeValues: new { id = Model.NextPage }, htmlAttributes: null)
+                </p>
+            }
+
+            @if (Model.PrevPage != 0)
+            {
+                <p class="pull-left">
+                    @Html.ActionLink("Previous", "Index", "Comic", routeValues: new { id = Model.PrevPage }, htmlAttributes: null)
+                </p>
+            }
+        </div>
+    </div>
+</div>
