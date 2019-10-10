@@ -1,0 +1,5 @@
+google-cloud
+apache-beam[gcp]
+pip
+psycopg2
+beam-nuggets
