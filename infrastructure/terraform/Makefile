@@ -5,7 +5,7 @@ endif
 
 .PHONY: gcs_backend_creds
 gcs_backend_creds:
-	vault read --field=key $(ENV_NAME)/tf_backend_svc_account > gcs_backend_creds
+#	vault read --field=key $(ENV_NAME)/tf_backend_svc_account > gcs_backend_creds
 
 .PHONY: deploy
 deploy: tf-apply
