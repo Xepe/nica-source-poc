@@ -137,15 +137,36 @@ db_schemas =[
                 { 'database': 'jobs',
                   'tables': [
                      {'name': 'job',
-                      'schema': ()},
+                      'schema': ('id:STRING, workspace_id:STRING, answers:STRING, status:STRING, name:STRING,'
+                                 'description:STRING, years:STRING, coverage_states:STRING, layerConversation:STRING,'
+                                 'created_by:STRING, current_milestone_id:STRING, date_transmitted:TIMESTAMP,'
+                                 'date_created:TIMESTAMP, date_start:TIMESTAMP, date_modified:TIMESTAMP,'
+                                 'date_accepted:TIMESTAMP, date_closed:TIMESTAMP, date_reopened:TIMESTAMP,'
+                                 'latest_paid_date:TIMESTAMP, paid_date:TIMESTAMP, primary_amount:FLOAT,'
+                                 'federal_amount:FLOAT, state_amount:FLOAT, admin_fee_amount:FLOAT,'
+                                 'gross_amount:FLOAT, coupon_amount:FLOAT, amended_amount:FLOAT, total:FLOAT,'
+                                 'paid_amount:FLOAT, provider_cut_amount:FLOAT, provider_cut:FLOAT,'
+                                 'latest_paid_amount:FLOAT, fees:STRING, coupon_ids:STRING, coupon_codes:STRING,'
+                                 'amendments:STRING, job_specs:STRING, billing_type:STRING, stripe_charges:STRING,'
+                                 'members:STRING, milestones:STRING, task_responses:STRING, info_lines:STRING,'
+                                 'rating_submitted:INTEGER,rating_submitted_categories:STRING,'
+                                 'rating_submitted_comment:STRING, rating_received:INTEGER,'
+                                 'rating_received_categories:STRING, rating_received_comment:STRING, schema:INTEGER,'
+                                 'owner_team_id:INTEGER, team_ids:STRING, legend_id:STRING, legend_name:STRING,'
+                                 'legend_version:INTEGER, date_deadline:TIMESTAMP, stale:BOOL, purge_status:STRING,'
+                                 'archived:BOOL, resolution:STRING, resolution_reason:STRING, etl_region:STRING,'
+                                 'etl_date_updated:TIMESTAMP')},
                      {'name': 'job_event',
-                      'schema': ()},
+                      'schema': ('id:STRING, date_created:TIMESTAMP, event_type:STRING, event_visibility:STRING,'
+                      'job_id:STRING, description:STRING, triggered_by:STRING, data:STRING, etl_region:STRING,'
+                      'etl_date_updated:TIMESTAMP')},
                      {'name': 'legend_cache',
-                      'schema': ()},
+                      'schema': ('legend_version_id:STRING, legend_data:STRING, etl_region:STRING,'
+                                 'etl_date_updated:TIMESTAMP')},
                      {'name': 'legend_ref',
-                      'schema': ()},
-                     ]},
-              # {'database': 'jobs', 'tables': ['job','job_event', 'legend_cache', 'legend_ref']},
+                      'schema': ('job_id:STRING, data:STRING, etl_region:STRING, etl_date_updated:TIMESTAMP')},
+                      ]},
+
               # {'database': 'legends', 'tables': ['legend', 'legend_version']},
               # {'database': 'messages', 'tables': ['conversation', 'conversation_participant', 'message',
               #                                     'message_status']}},
@@ -198,7 +219,7 @@ def run(argv=None):
     pipeline_options.view_as(SetupOptions).save_main_session = True
 
     timestamp = datetime.datetime.now().isoformat()
-    gcp_bucket = 'gs://c39-txf-sandbox/raw' #'gs://taxfyle-qa-data/data/raw'
+    gcp_bucket = 'gs://taxfyle-qa-data/data/raw' #'gs://c39-txf-sandbox/raw'
 
     with beam.Pipeline(options=PipelineOptions()) as p:
 
@@ -226,8 +247,8 @@ def run(argv=None):
 
                 records | "Writing records to BQ for: {}[{}]".format(d['database'], e['table']['name']) \
                     >> beam.io.WriteToBigQuery(
-                        'cloud39-sandbox:c39_txf_sandbox.{}'.format(e['table']['name']),
-                        #'taxfyle-qa-data:txf_dwh.{}'.format(e['table']['name']),
+                        #'cloud39-sandbox:c39_txf_sandbox.{}'.format(e['table']['name']),
+                        'taxfyle-qa-data:txf_dwh.{}'.format(e['table']['name']),
                           schema=e['table']['schema'],
                          # Creates the table in BigQuery if it does not yet exist.
                          create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
