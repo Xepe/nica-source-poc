@@ -163,13 +163,40 @@ db_schemas =[
                      {'name': 'legend_cache',
                       'schema': ('legend_version_id:STRING, legend_data:STRING, etl_region:STRING,'
                                  'etl_date_updated:TIMESTAMP')},
-                     {'name': 'legend_ref',
-                      'schema': ('job_id:STRING, data:STRING, etl_region:STRING, etl_date_updated:TIMESTAMP')},
+                     # {'name': 'legend_ref',
+                     #  'schema': ('job_id:STRING, data:STRING, etl_region:STRING, etl_date_updated:TIMESTAMP')},
                       ]},
-
-              # {'database': 'legends', 'tables': ['legend', 'legend_version']},
-              # {'database': 'messages', 'tables': ['conversation', 'conversation_participant', 'message',
-              #                                     'message_status']}},
+                {'database': 'legends',
+                 'tables': [
+                    {'name':'legend',
+                     'schema':('id:STRING, workspace_id:STRING, inactive:BOOL, deactivated_by_id:STRING,'
+                             'date_deactivated:TIMESTAMP, etl_region:STRING, etl_date_updated:TIMESTAMP')},
+                    {'name':'legend_version',
+                     'schema':('id:STRING, legend_id:STRING, version:INTEGER, version_notes:STRING,'
+                             'name:STRING, description:STRING, published:BOOL, date_created:TIMESTAMP,'
+                             'date_modified:TIMESTAMP, date_published:TIMESTAMP,'
+                             'last_updated_by_id:STRING, view_order:INTEGER, concurrency_version:INTEGER,'
+                             'engine_version:STRING, data:STRING, etl_region:STRING, etl_date_updated:TIMESTAMP')},
+                  ]},
+                {'database': 'messages',
+                'tables': [
+                  {'name':'conversation',
+                   'schema':('id:INTEGER, workspace_id:INTEGER, name:STRING, created_by_user_id:STRING, active:BOOL,'
+                             'external_id:STRING, meta:STRING, date_created:TIMESTAMP, date_modified:TIMESTAMP,'
+                             'etl_region:STRING, etl_date_updated:TIMESTAMP')},
+                  {'name': 'conversation_participant',
+                   'schema':('id:INTEGER, conversation_id:INTEGER, user_id:STRING, active:BOOL, type:STRING,'
+                             'last_seen:TIMESTAMP, date_created:TIMESTAMP, date_modified:TIMESTAMP, etl_region:STRING,'
+                             'etl_date_updated:TIMESTAMP')},
+                  {'name':'message',
+                   'schema':('id:INTEGER, conversation_id:INTEGER, user_id:STRING, content:STRING, mentions:STRING,'
+                             'active:BOOL, date_created:TIMESTAMP, date_modified:TIMESTAMP, etl_region:STRING,'
+                             'etl_date_updated:TIMESTAMP')},
+                  {'name':'message_status',
+                   'schema':('id:INTEGER, message_id:INTEGER, active:BOOL, user_id:STRING, status:STRING,'
+                             'date_created:TIMESTAMP, date_modified:TIMESTAMP, etl_region:STRING,'
+                             'etl_date_updated:TIMESTAMP')},
+                ]},
               ]
 
 
@@ -186,10 +213,11 @@ def get_db_source_config(database):
 
 
 def fix_data_type(element):
+    import datetime
 
     for key,value in element.items():
 
-        if isinstance(value, datetime.datetime) or isinstance(value, dict):
+        if isinstance(value, datetime.datetime) or isinstance(value, dict) or isinstance(value, list):
             element[key] = str(value)
 
     now = datetime.datetime.now().isoformat()
@@ -219,7 +247,9 @@ def run(argv=None):
     pipeline_options.view_as(SetupOptions).save_main_session = True
 
     timestamp = datetime.datetime.now().isoformat()
-    gcp_bucket = 'gs://taxfyle-qa-data/data/raw' #'gs://c39-txf-sandbox/raw'
+
+    # This is a parameters with the structure gs://env_name/region/raw using the env-varfrom tr
+    gcp_bucket = 'gs://c39-txf-sandbox/raw' #'gs://taxfyle-qa-data/data/raw'
 
     with beam.Pipeline(options=PipelineOptions()) as p:
 
@@ -247,30 +277,17 @@ def run(argv=None):
 
                 records | "Writing records to BQ for: {}[{}]".format(d['database'], e['table']['name']) \
                     >> beam.io.WriteToBigQuery(
-                        #'cloud39-sandbox:c39_txf_sandbox.{}'.format(e['table']['name']),
-                        'taxfyle-qa-data:txf_dwh.{}'.format(e['table']['name']),
+                        'cloud39-sandbox:c39_txf_sandbox.{}'.format(e['table']['name']),
+
+                        #'taxfyle-qa-data:txf_dwh.{}'.format(e['table']['name']),
                           schema=e['table']['schema'],
+
                          # Creates the table in BigQuery if it does not yet exist.
                          create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
+
                          # Deletes all data in the BigQuery table before writing.
                          write_disposition=beam.io.BigQueryDisposition.WRITE_APPEND),
-                # records | 'Writing to stdout' >> beam.Map(print)
-            #print(e)
-        # data = ( p | beam.Create(db_schema)
-        #          | DbExtractData(db_config=db_config))
 
-
-        # source_config = get_db_source_config(db_config, db_schema[0]['database'])
-        #
-        # records = p | "Reading records from db" >> relational_db.ReadFromDB(
-        #             source_config=source_config,
-        #             table_name=db_schema[0]['tables'][0],
-        #         )
-        #
-        # records | 'Writing to file' >> beam.io.WriteToText('user_coupon.txt')
-        # #records | 'Writing to bucket' >> beam.io.WriteToText('gs://taxfyle-qa-us-data-raw/billing/user_coupon')
-        # #records | 'Writing to BQ table' >> beam.io.WriteToBigQuery('table_name', 'schema_name')
-        # records | 'Writing to stdout' >> beam.Map(print)
 
 if __name__ == '__main__':
     logging.getLogger().setLevel(logging.INFO)
