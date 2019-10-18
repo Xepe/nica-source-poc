@@ -6,16 +6,30 @@ from beam_nuggets.io import relational_db
 from apache_beam.options.pipeline_options import PipelineOptions, SetupOptions
 
 db_config = {
-    'host': '127.0.0.1',
+    'host': '10.8.240.3',
     'port': 5432,
-    'user': 'postgres',
-    'password': 'PnNZ)58}&k=?jybfpYpi4@TIfB@V{9'
+    'user': 'txf-user',
+    'password': 'Qwerty123'
 }
 
-db_schemas = [{'database': 'billing', 'tables': [{'name': 'billing_method', 'schema': (
-                    'id:INTEGER, billing_profile_id:INTEGER, workspace_id:INTEGER, type:STRING, user_id:STRING, date_created:TIMESTAMP,'
-                    'date_modified:TIMESTAMP, data:STRING, metadata:STRING, team_id:STRING, inactive:BOOL, '
-                    'limit:INTEGER, etl_region:STRING, etl_date_updated:TIMESTAMP')}]},
+db_schemas = [
+    
+            # {'database': 'billing', 'tables': [
+            #     {'name': 'billing_method', 'schema': (
+            #         'id:INTEGER, billing_profile_id:INTEGER, workspace_id:INTEGER, type:STRING, user_id:STRING, date_created:TIMESTAMP,'
+            #         'date_modified:TIMESTAMP, data:STRING, metadata:STRING, team_id:STRING, inactive:BOOL, '
+            #         'limit:INTEGER, etl_region:STRING, etl_date_updated:TIMESTAMP')}
+            #     ]},
+            {
+                'database': 'txf-data', 
+                'tables' : [ 
+                    {
+                        'name' : 'data',
+                        'schema' : ('id:INTEGER, text:STRING, etl_region:STRING, etl_date_updated:TIMESTAMP')
+                    }
+
+                ] 
+            }
                                                  # {'name': 'billing_profile', 'schema': (
                                                  #     'id:NUMERIC, user_id:STRING, workspace_id:NUMERIC, date_created:DATETIME, date_modified:DATETIME,'
                                                  #     'metadata:STRING, default_billing_method_id:NUMERIC, default_payout_method_id:NUMERIC, team_id:STRING,'
@@ -69,7 +83,7 @@ def get_db_source_config(database):
 
 
 def fix_dates(element):
-
+    import datetime
     for key,value in element.items():
 
         if isinstance(value, datetime.datetime) or isinstance(value, dict):
@@ -102,7 +116,8 @@ def run(argv=None):
     pipeline_options.view_as(SetupOptions).save_main_session = True
 
     timestamp = datetime.datetime.now().isoformat()
-    gcp_bucket = 'gs://c39-txf-sandbox/raw'
+    gcp_bucket = 'gs://c39-txf-sandbox-datalake/raw' 
+                #'gs://c39-txf-sandbox/raw' 
                 #'gs://taxfyle-qa-data/data/raw'
 
     with beam.Pipeline(options=PipelineOptions()) as p:
@@ -131,7 +146,7 @@ def run(argv=None):
 
                 records | "Writing records to BQ for: {}[{}]".format(d['database'], e['table']['name']) \
                     >> beam.io.WriteToBigQuery(
-                         'cloud39-sandbox:c39_txf_sandbox.{}'.format(e['table']['name']),
+                         'c39-txf-sandbox:main_dwh.{}'.format(e['table']['name']),
                         #'taxfyle-qa-data:txf_dwh.{}'.format(e['table']['name']),
                           schema=e['table']['schema'],
                          # Creates the table in BigQuery if it does not yet exist.

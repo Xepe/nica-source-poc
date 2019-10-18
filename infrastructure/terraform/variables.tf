@@ -9,3 +9,15 @@ variable "data_project" {
 variable "shared_vpc_network" {
   type = "string"
 } 
+
+variable "shared_vpc_sub_network" {
+    type = "string"
+}
+
+variable "shared_vpc_sub_network_ip_range" {
+    type = "string"
+}
+
+variable "shared_vpc_sub_network_region" {
+  type = "string"
+} 

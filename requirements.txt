@@ -1,5 +1,4 @@
 google-cloud
+cython
 apache-beam[gcp]
-pip
-psycopg2
 beam-nuggets
