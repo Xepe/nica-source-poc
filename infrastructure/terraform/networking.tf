@@ -1,19 +1,19 @@
 # main project
-resource "google_compute_network" "vpc_network" {
-    name = "${var.shared_vpc_network}" 
-    project = "${var.main_project}"
-    routing_mode = "REGIONAL"
-    auto_create_subnetworks = false    
-}
+# resource "google_compute_network" "vpc_network" {
+#    name = "${var.shared_vpc_network}" 
+#    project = "${var.main_project}"
+#    routing_mode = "REGIONAL"
+#    auto_create_subnetworks = false    
+#}
 
-resource "google_compute_subnetwork" "vpc-subnetwork" {
-   name = "${var.shared_vpc_sub_network}"  
-   project = "${var.main_project}"  
-   network = "${var.shared_vpc_network}"     
-   ip_cidr_range = "${var.shared_vpc_sub_network_ip_range}"
-   region = "${var.shared_vpc_sub_network_region}"
-   depends_on = [google_compute_network.vpc_network]
-}
+#resource "google_compute_subnetwork" "vpc-subnetwork" {
+#   name = "${var.shared_vpc_sub_network}"  
+#   project = "${var.main_project}"  
+#   network = "${var.shared_vpc_network}"     
+#   ip_cidr_range = "${var.shared_vpc_sub_network_ip_range}"
+#   region = "${var.shared_vpc_sub_network_region}"
+#   depends_on = [google_compute_network.vpc_network]
+#}
 
 
 # Enables the Google Compute Engine Shared VPC feature for a project, assigning it as a Shared VPC host project.

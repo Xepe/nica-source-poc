@@ -6,7 +6,7 @@ from beam_nuggets.io import relational_db
 from apache_beam.options.pipeline_options import PipelineOptions, SetupOptions
 
 db_config = {
-    'host': '127.0.0.1',
+    'host': '10.248.0.6',
     'port': 5432,
     'user': 'postgres',
     'password': 'PnNZ)58}&k=?jybfpYpi4@TIfB@V{9'
