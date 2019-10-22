@@ -6,6 +6,6 @@ resource "google_storage_bucket" "datalake-bucket" {
 
 # Bucket for terraform etl-tfstate
 resource "google_storage_bucket" "etl-tfstate-bucket" {
-    name    = "${var.data_project}-${var.env_name}-etl-tfstate"
+    name    = "${var.data_project}-da-data-etl-tfstate"
     project = "${var.data_project}"
 }

@@ -1,6 +1,5 @@
 main_project = "cloud39-sandbox"
 data_project = "c39-txf-sandbox"
-env_name = $(ENV_NAME)
 
 shared_vpc_network = "txf-shared-vpc-network"
 shared_vpc_sub_network = "txf-shared-vpc-subnetwork"
