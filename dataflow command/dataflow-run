@@ -1,0 +1,2 @@
+python main.py --runner DataflowRunner --project c39-txf-sandbox --temp_location gs://c39-txf-sandbox-datalake/tmp --subnetwork https://www.googleapis.com/compute/v1/projects/cloud39-sandbox/regions/us-east1/subnetworks/cloudsql-dataflow-subnet --region us-east1 --requirements_file requirements.txt
+

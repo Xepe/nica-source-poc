@@ -16,19 +16,18 @@ resource "google_storage_bucket" "code-bucket" {
     project = "${var.data_project}"
 }
 
-#copy code files as zip file
+# Zip Code folder
 data "archive_file" "code" {
   type        = "zip"
-  output_path = "./../../code.zip"
-  depends_on = [google_storage_bucket.code-bucket]
-
-  source {
-    content  = ".txt"
-    filename = "./../../requirements.txt"
-  }
-
-  source {
-    content  = ".py"
-    filename = "./../../main.py"
-  }  
+  source_dir = "./../../code/"
+  output_path = ".${replace(path.module, path.root, "")}/code/code.zip"  
 }
+
+# Provisioning code  to bucket
+resource "google_storage_bucket_object" "application-zip" {
+  name   = "code.zip"
+  source = ".${replace(path.module, path.root, "")}/code/code.zip"
+  bucket = "${google_storage_bucket.code-bucket.name}"
+  depends_on = [google_storage_bucket.code-bucket]
+}
+

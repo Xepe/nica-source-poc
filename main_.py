@@ -98,6 +98,8 @@ def fix_dates(element):
 
 
 def run(argv=None):
+    logging.info("printing arguments")
+    logging.info(str(argv))
     """Main entry point; defines and runs the data pipeline."""
     parser = argparse.ArgumentParser()
     # parser.add_argument('--input',
@@ -109,6 +111,11 @@ def run(argv=None):
     #                     required=True,
     #                     help='Output file to write results to.')
     known_args, pipeline_args = parser.parse_known_args(argv)
+
+    print ("conocidos")
+    print(known_args)
+    print ("pipeline")
+    print (pipeline_args)
 
     # We use the save_main_session option because one or more DoFn's in this
     # workflow rely on global context (e.g., a module imported at module level).
@@ -172,5 +179,5 @@ def run(argv=None):
         # records | 'Writing to stdout' >> beam.Map(print)
 
 if __name__ == '__main__':
-    logging.getLogger().setLevel(logging.INFO)
+    logging.getLogger().setLevel(logging.DEBUG)
     run()
