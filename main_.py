@@ -1,6 +1,7 @@
 import argparse
 import datetime
 import logging
+
 import apache_beam as beam
 from beam_nuggets.io import relational_db
 from apache_beam.options.pipeline_options import PipelineOptions, SetupOptions
