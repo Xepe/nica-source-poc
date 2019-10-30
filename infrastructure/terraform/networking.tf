@@ -16,12 +16,12 @@
 
 # A host project provides network resources to associated service projects.
 resource "google_compute_shared_vpc_host_project" "main" {
-    project = "${var.main_project}"
+    project = "${var.data_project}"
 }
 
 # A service project gains access to network resources provided by its associated host project.
 resource "google_compute_shared_vpc_service_project" "data" {
-    host_project    = "${var.main_project}"
-    service_project = "${var.data_project}"
+    host_project    = "${var.data_project}"
+    service_project = "${var.processing_data_project}"
     depends_on = [google_compute_shared_vpc_host_project.main]
 }
