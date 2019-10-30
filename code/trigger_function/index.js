@@ -1,8 +1,8 @@
 const { google } = require('googleapis');
 const dataflow = google.dataflow('v1b3');
 
-const TEMPLATE_BUCKET = 'c39-txf-sandbox-code'; //"taxfyle-qa-data-code" //'c39-txf-sandbox-code';
-const project = "c39-txf-sandbox"; //"taxfyle-qa-data"; //"c39-txf-sandbox"
+const TEMPLATE_BUCKET = "taxfyle-qa-data-code"; //"taxfyle-qa-data-code" //'c39-txf-sandbox-code';
+const project = "taxfyle-qa-data"; //"taxfyle-qa-data"; //"c39-txf-sandbox"
 
 exports.executeTemplateInDataflow = (req, res) => {
 
@@ -14,7 +14,7 @@ exports.executeTemplateInDataflow = (req, res) => {
   var templatePath = `gs://${TEMPLATE_BUCKET}/templates/pipeline-template`;
   var request = {
     projectId: process.env.GCLOUD_PROJECT,
-    location: 'us-east1', //'us-central1', //'us-east1'
+    location: 'us-central1', //'us-central1', //'us-east1'
     requestBody: {
       jobName: jobName,
       parameters: {
@@ -23,7 +23,7 @@ exports.executeTemplateInDataflow = (req, res) => {
         db_user : "txf-user", 
         db_password : "Qwerty123",
         dest_dataset: "main_dwh",
-        dest_bucket: "c39-txf-sandbox-datalake", //"taxfyle-qa-data-datalake", //"c39-txf-sandbox-datalake",
+        dest_bucket: "taxfyle-qa-data-datalake", //"taxfyle-qa-data-datalake", //"c39-txf-sandbox-datalake",
         etl_region: "US"
       },
       environment: {

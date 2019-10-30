@@ -2,7 +2,7 @@ resource "google_cloud_scheduler_job" "dataflow_trigger" {
 project = "${var.processing_data_project}"
 region  = "${var.network_region}"
 name    = "dataflow-scheduler-job"
-schedule = "*/20 * * * *"
+schedule = "0 */4 * * *"
 time_zone = "${var.timezone}"
 
 http_target {

@@ -25,3 +25,12 @@ resource "google_compute_shared_vpc_service_project" "data" {
     service_project = "${var.processing_data_project}"
     depends_on = [google_compute_shared_vpc_host_project.main]
 }
+
+resource "google_compute_subnetwork_iam_member" "subnet" {
+  project = "${var.data_project}"
+  region = "${var.network_region}"
+  subnetwork = "${var.data_project_sub_network}"
+  role       = "roles/compute.networkUser"
+  member     = "serviceAccount:service-1022478287302@dataflow-service-producer-prod.iam.gserviceaccount.com"
+  depends_on = [google_compute_shared_vpc_host_project.main, google_project_service.dataflow-service]
+}
