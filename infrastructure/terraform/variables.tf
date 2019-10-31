@@ -1,8 +1,8 @@
-variable "data_project" {
+variable "host_project" {
   type = "string"
 }
 
-variable "processing_data_project" {
+variable "service_project" {
   type = "string"
 }
 
@@ -10,7 +10,7 @@ variable "network_region" {
   type = "string"
 } 
 
-variable "data_project_sub_network" {
+variable "host_project_sub_network" {
   type = "string"
 } 
 
@@ -18,7 +18,7 @@ variable "timezone" {
   type = "string"
 } 
 
-variable "app_engine_region" {
+variable "service_project_app_engine_region" {
   type = "string"
 } 
 

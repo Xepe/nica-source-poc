@@ -1,9 +1,9 @@
 # Cloud Function
 resource "google_cloudfunctions_function" "trigger-pipeline-template-function" {
-    project               = "${var.processing_data_project}"
+    project               = "${var.service_project}"
     region                = "${var.network_region}"
     name                  = "trigger-pipeline-template-function"
-    description           = "Trigger pipeline template execution in dataflow to read data from database in project: ${var.data_project} then write data to BigQuery and DataStorage in project: ${var.processing_data_project}"
+    description           = "Trigger pipeline template execution in dataflow to read data from database in project: ${var.host_project} then write data to BigQuery and DataStorage in project: ${var.service_project}"
     runtime               = "nodejs8"
 
     available_memory_mb   = 256

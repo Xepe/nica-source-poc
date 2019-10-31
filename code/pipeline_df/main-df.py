@@ -18,6 +18,9 @@ db_schemas = [
                 #     ] 
                 # }
 
+
+                # taxfyle
+
                 { 
                     'database': 'billing',
                     'tables': [
@@ -186,12 +189,12 @@ db_schemas = [
 def get_db_source_config(pipeline_options, database):
 
     return relational_db.SourceConfiguration(
-            drivername  ='postgresql+pg8000',
-            host        =str(pipeline_options.db_host),
-            port        =str(pipeline_options.db_port),
-            username    =str(pipeline_options.db_user),
-            password    =str(pipeline_options.db_password),
-            database    =database
+            drivername  = 'postgresql+pg8000',
+            host        = str(pipeline_options.db_host),
+            port        = int(str(pipeline_options.db_port)),
+            username    = str(pipeline_options.db_user),
+            password    = str(pipeline_options.db_password),
+            database    = database
         )
 
 def fix_dates(element, etl_region):
@@ -212,13 +215,13 @@ def fix_dates(element, etl_region):
 class UserOptions(PipelineOptions):
     @classmethod
     def _add_argparse_args(cls, parser):
-        parser.add_value_provider_argument('--db_host', type=str)
-        parser.add_value_provider_argument('--db_port', type=int)
-        parser.add_value_provider_argument('--db_user', type=str)
-        parser.add_value_provider_argument('--db_password', type=str)
-        parser.add_value_provider_argument('--dest_dataset', type=str)
-        parser.add_value_provider_argument('--dest_bucket', type=str)
-        parser.add_value_provider_argument('--etl_region', type=str)
+        parser.add_value_provider_argument('--db_host', type=str, dest='db_host', default='no_host')
+        parser.add_value_provider_argument('--db_port', type=int, dest='db_port', default=0, required=False)
+        parser.add_value_provider_argument('--db_user', type=str, dest='db_user', default='no_user')
+        parser.add_value_provider_argument('--db_password', type=str, dest='db_password', default='no_password')
+        parser.add_value_provider_argument('--dest_dataset', type=str, dest='dest_dataset', default='no_dataset')
+        parser.add_value_provider_argument('--dest_bucket', type=str, dest='dest_bucket', default='no_bucket')
+        parser.add_value_provider_argument('--etl_region', type=str, dest='etl_region', default='no_region')
 
 
 def run(argv=None):
@@ -237,7 +240,7 @@ def run(argv=None):
     # We use the save_main_session option because one or more DoFn's in this
     # workflow rely on global context (e.g., a module imported at module level).
     pipeline_options = UserOptions(pipeline_args)
-    pipeline_options.view_as(SetupOptions).save_main_session = True
+    # pipeline_options.view_as(SetupOptions).save_main_session = True
 
     google_cloud_options = pipeline_options.view_as(GoogleCloudOptions)
     project = str(google_cloud_options.project)
