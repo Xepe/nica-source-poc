@@ -27,8 +27,8 @@ resource "google_project_service" "cloud-big-query-service" {
 }
 
 # # Enable Cloud Storage
-# resource "google_project_service" "cloud-storage-service" {
-#   project = "${var.service_project}"
-#   service   = "storage-component.googleapis.com"
-#   disable_on_destroy = false
-# }
+resource "google_project_service" "cloud-storage-service" {
+  project = "${var.service_project}"
+  service   = "storage-component.googleapis.com"
+  disable_on_destroy = false
+}

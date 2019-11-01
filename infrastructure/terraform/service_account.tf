@@ -43,7 +43,7 @@ resource "google_project_iam_member" "service-project-service-account-data-pipel
 # Grant access to save data to bukects in the service project 
 resource "google_project_iam_member" "service-project-service-account-data-pipeline-admin-buckets" {
     project = "${var.service_project}"
-    role    = "roles/storage.admin"
+    role    = "roles/storage.objectAdmin" 
     member = "serviceAccount:${google_service_account.service-project-service-account-data-pipeline.email}"
     depends_on = [google_service_account.service-project-service-account-data-pipeline]
 }
@@ -55,16 +55,6 @@ resource "google_project_iam_member" "service-project-service-account-data-pipel
     member = "serviceAccount:${google_service_account.service-project-service-account-data-pipeline.email}"
     depends_on = [google_service_account.service-project-service-account-data-pipeline]
 }
-
-
-# service account in host project
-
-# Service account 
-# resource "google_service_account" "host-project-service-account-data-pipeline" {
-#     project = "${var.host_project}"
-#     account_id   = "${google_service_account.service-project-service-account-data-pipeline.account_id}"
-#     display_name = "Dataflow Service Account for execute Taxfyle data pipeline"
-# }
 
 # Grant access in host project (access network, access SQL intance)
 # Grant access to shared VPC

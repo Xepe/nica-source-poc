@@ -18,11 +18,7 @@ variable "timezone" {
   type = "string"
 } 
 
-variable "service_project_app_engine_region" {
-  type = "string"
-} 
-
-variable "environment" {
+variable "service_project_app_engine_location_id" {
   type = "string"
 } 
 
