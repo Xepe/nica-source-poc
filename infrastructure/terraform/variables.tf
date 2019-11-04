@@ -1,23 +1,47 @@
-variable "main_project" {
+variable "host_project" {
   type = "string"
 }
 
-variable "data_project" {
+variable "service_project" {
   type = "string"
 }
 
-variable "shared_vpc_network" {
+variable "network_region" {
+  type = "string"
+} 
+
+variable "host_project_sub_network" {
   type = "string"
 } 
 
-variable "shared_vpc_sub_network" {
-    type = "string"
-}
-
-variable "shared_vpc_sub_network_ip_range" {
-    type = "string"
-}
-
-variable "shared_vpc_sub_network_region" {
+variable "timezone" {
   type = "string"
 } 
+
+variable "service_project_app_engine_location_id" {
+  type = "string"
+} 
+
+variable "etl_region" {
+  type = "string"
+} 
+
+variable "dest_dataset" {
+  type = "string"
+}
+
+variable "db_host" {
+  type = "string"
+}
+
+variable "db_port" {
+  type = "string"
+}
+
+variable "db_user" {
+  type = "string"
+}
+
+variable "db_password" {
+  type = "string"
+}

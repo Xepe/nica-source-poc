@@ -1,4 +1,0 @@
-google-cloud
-cython
-apache-beam[gcp]
-beam-nuggets
