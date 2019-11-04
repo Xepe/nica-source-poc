@@ -1,2 +1,3 @@
+google-cloud
 apache-beam[gcp]
 beam-nuggets

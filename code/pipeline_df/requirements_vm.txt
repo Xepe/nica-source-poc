@@ -1,0 +1,5 @@
+google-cloud
+apache-beam[gcp]
+beam-nuggets
+six==1.12.0
+Cython==0.29.13
