@@ -33,14 +33,6 @@ resource "google_compute_subnetwork_iam_binding" "subnet" {
 }
 
 # Grant access to execute dataflow worker in the service project
-# resource "google_project_iam_member" "service-project-service-account-data-pipeline-df-admin" {
-#     project = "${var.service_project}"
-#     # admin role to be able to create jobs from vm, when executing from template only need dataflow.worker
-#     role = "roles/dataflow.admin"  
-#     member = "serviceAccount:${google_service_account.service-project-service-account-data-pipeline.email}"
-#     depends_on = [google_service_account.service-project-service-account-data-pipeline]
-# }
-
 resource "google_project_iam_member" "service-project-service-account-data-pipeline-df-worker" {
     project = "${var.service_project}"
     role = "roles/dataflow.worker"     

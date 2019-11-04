@@ -18,7 +18,6 @@ resource "google_compute_instance" "default" {
 
     network_interface {
         network = "default"
-        #subnetwork = "https://www.googleapis.com/compute/v1/projects/${var.host_project}/regions/${var.network_region}/subnetworks/${var.host_project_sub_network}"
 
         access_config {
         // Ephemeral IP
@@ -30,8 +29,7 @@ resource "google_compute_instance" "default" {
     }
 
     service_account {
-        email = "296783778293-compute@developer.gserviceaccount.com"
-        # email  = "${google_service_account.service-project-service-account-data-pipeline.email}"
+        email = "${data.google_project.project.number}-compute@developer.gserviceaccount.com"
         scopes = ["cloud-platform"]
     }
 
@@ -69,10 +67,7 @@ resource "google_compute_instance" "default" {
         inline = [
             "sudo pip3 install -r /home/gcp_user/requirements.txt",
             "sudo chmod +x /home/gcp_user/main-df.py",
-            # "echo '/usr/bin/python3 /home/gcp_user/main-df.py --runner DataflowRunner --project ${var.service_project} --service_account_email ${google_service_account.service-project-service-account-data-pipeline.email} --temp_location gs://${google_storage_bucket.datalake-bucket.name}/tmp --staging_location gs://${google_storage_bucket.code-bucket.name}/binaries --subnetwork https://www.googleapis.com/compute/v1/projects/${var.host_project}/regions/${var.network_region}/subnetworks/${var.host_project_sub_network} --region ${var.network_region} --requirements_file /home/gcp_user/requirements.txt --db_host ${var.db_host} --db_port ${var.db_port} --db_user ${var.db_user} --db_password \"${var.db_password}\" --dest_dataset ${var.dest_dataset} --dest_bucket ${google_storage_bucket.datalake-bucket.name} --etl_region ${var.etl_region}' > /home/gcp_user/execute_pipeline_${lower(var.etl_region)}.sh",            
-            # "sudo chmod +x /home/gcp_user/execute_pipeline_${lower(var.etl_region)}.sh",
-            "(crontab -l ; echo '0 */4 * * * /usr/bin/python3 /home/gcp_user/main-df.py --runner DataflowRunner --project ${var.service_project} --temp_location gs://${google_storage_bucket.datalake-bucket.name}/tmp --staging_location gs://${google_storage_bucket.code-bucket.name}/binaries --subnetwork https://www.googleapis.com/compute/v1/projects/${var.host_project}/regions/${var.network_region}/subnetworks/${var.host_project_sub_network} --region ${var.network_region} --requirements_file /home/gcp_user/requirements.txt --db_host ${var.db_host} --db_port ${var.db_port} --db_user ${var.db_user} --db_password \"${var.db_password}\" --dest_dataset ${var.dest_dataset} --dest_bucket ${google_storage_bucket.datalake-bucket.name} --etl_region ${var.etl_region}') | sort - | uniq - | crontab -",
-            # "(crontab -l ; echo '0 */4 * * * /bin/sh /home/gcp_user/execute_pipeline_${lower(var.etl_region)}.sh') | sort - | uniq - | crontab -",
+            "(crontab -l ; echo '0 */4 * * * /usr/bin/python3 /home/gcp_user/main-df.py --runner DataflowRunner --job_name vm-trigger-pipeline-${lower(var.network_region)} --service_account_email ${google_service_account.service-project-service-account-data-pipeline.email} --project ${var.service_project} --temp_location gs://${google_storage_bucket.datalake-bucket.name}/tmp --staging_location gs://${google_storage_bucket.code-bucket.name}/binaries --subnetwork https://www.googleapis.com/compute/v1/projects/${var.host_project}/regions/${var.network_region}/subnetworks/${var.host_project_sub_network} --region ${var.network_region} --requirements_file /home/gcp_user/requirements.txt --db_host ${var.db_host} --db_port ${var.db_port} --db_user ${var.db_user} --db_password \"${var.db_password}\" --dest_dataset ${var.dest_dataset} --dest_bucket ${google_storage_bucket.datalake-bucket.name} --etl_region ${var.etl_region}') | sort - | uniq - | crontab -",
             "sudo systemctl restart cron",
             "sudo crontab -u gcp_user -l"            
         ]
