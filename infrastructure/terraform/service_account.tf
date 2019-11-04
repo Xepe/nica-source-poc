@@ -56,14 +56,6 @@ resource "google_project_iam_member" "service-project-service-account-data-pipel
     depends_on = [google_service_account.service-project-service-account-data-pipeline]
 }
 
-# # Grant access to vm
-# resource "google_project_iam_member" "service-project-service-account-data-pipeline-vm" {
-#     project = "${var.service_project}"
-#     role    = "roles/compute.imageUser"
-#     member = "serviceAccount:${google_service_account.service-project-service-account-data-pipeline.email}"
-#     depends_on = [google_service_account.service-project-service-account-data-pipeline]
-# }
-
 # Grant access in host project (access network, access SQL intance)
 # Grant access to shared VPC
 resource "google_project_iam_member" "host-project-service-account-data-pipeline-shared-vpc" {

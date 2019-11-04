@@ -1,16 +1,16 @@
 # infrastructure
-host_project = "taxfyle-qa" # "cloud39-sandbox" #"taxfyle-qa" #
-service_project = "taxfyle-qa-data" # "c39-txf-sandbox" # "taxfyle-qa-data" #
-network_region = "us-central1" # "us-east1" # "us-central1" #
-host_project_sub_network = "default-kubes-us" # "cloudsql-dataflow-subnet" #"default-kubes-us"
-service_project_app_engine_location_id ="us-central" # "us-east1" #"us-central"
+host_project = "taxfyle-qa" 
+service_project = "taxfyle-qa-data"
+network_region = "us-central1" 
+host_project_sub_network = "default-kubes-us" 
+service_project_app_engine_location_id ="us-central" 
 timezone = "America/New_York"
 
 # database connection
-db_host = "10.248.0.6" # "10.8.240.3" # "10.248.0.6"
+db_host = "10.248.0.6" 
 db_port = 5432
-db_user = "postgres" # "txf-user"  # "postgres"
-db_password = "PnNZ)58}&k=?jybfpYpi4@TIfB@V{9" # "Qwerty123" # "PnNZ)58}&k=?jybfpYpi4@TIfB@V{9"
+db_user = "postgres" 
+db_password = "PnNZ)58}&k=?jybfpYpi4@TIfB@V{9" 
 
 # data destination Big Query dataset
 dest_dataset = "main_dwh"
@@ -29,13 +29,13 @@ etl_region = "US"
 #         name = "us",
 #         region = "us-central1",
 #         sub_network = "",
-#         service_project_app_engine_location_id = "", 
+#         service_project_app_engine_location_id = "us-central", 
 #         timezone = "America/New_York",
 #         db = {
-#               db_host = "10.8.240.3" # "10.8.240.3" # "10.248.0.6"
+#               db_host = "10.248.0.6" 
 #               db_port = 5432
-#               db_user = "txf-user" # "txf-user"  # "postgres"
-#               db_password = "Qwerty123" # "Qwerty123" # "PnNZ)58}&k=?jybfpYpi4@TIfB@V{9"
+#               db_user = "postgres" # "txf-user"  # "postgres"
+#               db_password = "PnNZ)58}&k=?jybfpYpi4@TIfB@V{9"
 #         },
 #         dest_dataset = "main_dwh"   
 #     },
@@ -46,11 +46,11 @@ etl_region = "US"
 #         service_project_app_engine_location_id = "",
 #         timezone = "America/New_York",
 #         db = {
-#               db_host = "10.8.240.3" # "10.8.240.3" # "10.248.0.6"
+#               db_host = ""
 #               db_port = 5432
-#               db_user = "txf-user" # "txf-user"  # "postgres"
-#               db_password = "Qwerty123" # "Qwerty123" # "PnNZ)58}&k=?jybfpYpi4@TIfB@V{9"
+#               db_user = ""
+#               db_password = ""
 #         },
-#         dest_dataset = "main_dwh"
+#         dest_dataset = ""
 #     }
 # ]
