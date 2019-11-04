@@ -7,183 +7,183 @@ from apache_beam.options.pipeline_options import GoogleCloudOptions, PipelineOpt
 import base64
 
 db_schemas = [   
-                {
-                    'database': 'txf-data', 
-                    'tables' : [ 
-                        {
-                            'name' : 'data',
-                            'schema' : ('id:INTEGER, text:STRING, etl_region:STRING, etl_date_updated:TIMESTAMP')
-                        }
+                # {
+                #     'database': 'txf-data', 
+                #     'tables' : [ 
+                #         {
+                #             'name' : 'data',
+                #             'schema' : ('id:INTEGER, text:STRING, etl_region:STRING, etl_date_updated:TIMESTAMP')
+                #         }
 
-                    ] 
-                }
+                #     ] 
+                # }
 
 
                 # taxfyle
 
-                # { 
-                #     'database': 'billing',
-                #     'tables': [
-                #                 {
-                #                     'name': 'billing_method',
-                #                     'schema': ('id:INTEGER, billing_profile_id:INTEGER, workspace_id:INTEGER, type:STRING, user_id:STRING, date_created:TIMESTAMP, date_modified:TIMESTAMP, data:STRING, metadata:STRING, team_id:STRING, inactive:BOOL, limit:INTEGER, etl_region:STRING, etl_date_updated:TIMESTAMP')
-                #                 },
-                #                 {
-                #                     'name': 'billing_profile',
-                #                     'schema': ('id:INTEGER, user_id:STRING, workspace_id:INTEGER, date_created:TIMESTAMP, date_modified:TIMESTAMP, metadata:STRING, default_billing_method_id:INTEGER, default_payout_method_id:INTEGER, team_id:STRING, etl_region:STRING, etl_date_updated:TIMESTAMP')
-                #                 },
-                #                 {
-                #                     'name': 'coupon',
-                #                     'schema': ('id:INTEGER, code:STRING, workspace_id:INTEGER, friendly_name:STRING, description:STRING, max_total_redemptions:INTEGER, date_expires:TIMESTAMP, duration:STRING, coupon_type:STRING, referrer_user_id:STRING, created_by_user_id:STRING, off_type:STRING, percent_off:FLOAT, amount_off:FLOAT, date_created:TIMESTAMP, date_modified:TIMESTAMP, max_amount_off:FLOAT, max_percent_off:FLOAT, etl_region:STRING, etl_date_updated:TIMESTAMP')
-                #                 },
-                #                 {
-                #                     'name': 'user_coupon',
-                #                     'schema': ('id:INTEGER, coupon_id:INTEGER, user_id:STRING, redeemed:BOOL, date_redeemed:TIMESTAMP, date_created:TIMESTAMP, date_modified:TIMESTAMP, etl_region:STRING, etl_date_updated:TIMESTAMP')
-                #                 },
-                #                 {
-                #                     'name': 'credit_transactions',
-                #                     'schema': ('id:INTEGER, transaction_type:STRING, amount:INT64, billing_method_id:NUMERIC, version:INT64, date_created:TIMESTAMP, metadata:STRING, etl_region:STRING, etl_date_updated:TIMESTAMP')
-                #                 },
-                #                 {
-                #                     'name': 'payout_method',
-                #                     'schema': ('id:INTEGER, billing_profile_id:INTEGER, workspace_id:INTEGER, type:STRING, user_id:STRING, date_created:TIMESTAMP, date_modified:TIMESTAMP, data:STRING, metadata:STRING, team_id:STRING, etl_region:STRING, etl_date_updated:TIMESTAMP')
-                #                 },
-                #     ]
-                # },
+                { 
+                    'database': 'billing',
+                    'tables': [
+                                {
+                                    'name': 'billing_method',
+                                    'schema': ('id:INTEGER, billing_profile_id:INTEGER, workspace_id:INTEGER, type:STRING, user_id:STRING, date_created:TIMESTAMP, date_modified:TIMESTAMP, data:STRING, metadata:STRING, team_id:STRING, inactive:BOOL, limit:INTEGER, etl_region:STRING, etl_date_updated:TIMESTAMP')
+                                },
+                                {
+                                    'name': 'billing_profile',
+                                    'schema': ('id:INTEGER, user_id:STRING, workspace_id:INTEGER, date_created:TIMESTAMP, date_modified:TIMESTAMP, metadata:STRING, default_billing_method_id:INTEGER, default_payout_method_id:INTEGER, team_id:STRING, etl_region:STRING, etl_date_updated:TIMESTAMP')
+                                },
+                                {
+                                    'name': 'coupon',
+                                    'schema': ('id:INTEGER, code:STRING, workspace_id:INTEGER, friendly_name:STRING, description:STRING, max_total_redemptions:INTEGER, date_expires:TIMESTAMP, duration:STRING, coupon_type:STRING, referrer_user_id:STRING, created_by_user_id:STRING, off_type:STRING, percent_off:FLOAT, amount_off:FLOAT, date_created:TIMESTAMP, date_modified:TIMESTAMP, max_amount_off:FLOAT, max_percent_off:FLOAT, etl_region:STRING, etl_date_updated:TIMESTAMP')
+                                },
+                                {
+                                    'name': 'user_coupon',
+                                    'schema': ('id:INTEGER, coupon_id:INTEGER, user_id:STRING, redeemed:BOOL, date_redeemed:TIMESTAMP, date_created:TIMESTAMP, date_modified:TIMESTAMP, etl_region:STRING, etl_date_updated:TIMESTAMP')
+                                },
+                                {
+                                    'name': 'credit_transactions',
+                                    'schema': ('id:INTEGER, transaction_type:STRING, amount:INT64, billing_method_id:NUMERIC, version:INT64, date_created:TIMESTAMP, metadata:STRING, etl_region:STRING, etl_date_updated:TIMESTAMP')
+                                },
+                                {
+                                    'name': 'payout_method',
+                                    'schema': ('id:INTEGER, billing_profile_id:INTEGER, workspace_id:INTEGER, type:STRING, user_id:STRING, date_created:TIMESTAMP, date_modified:TIMESTAMP, data:STRING, metadata:STRING, team_id:STRING, etl_region:STRING, etl_date_updated:TIMESTAMP')
+                                },
+                    ]
+                },
 
-                # { 
-                #     'database': 'documents',
-                #     'tables': [
-                #                 {
-                #                     'name': 'document',
-                #                     'schema': ('id:INTEGER, title:STRING, description:STRING, owner_id:STRING, workspace_id:STRING, archived:BOOL, date_created:TIMESTAMP, date_modified:TIMESTAMP, etl_region:STRING, etl_date_updated:TIMESTAMP')
-                #                 },
-                #                 {
-                #                     'name':'document_access',
-                #                     'schema': ('id:INTEGER, grantor_id:STRING,type:STRING, job_id:STRING, edit_permission:STRING, date_created:TIMESTAMP, date_modified:TIMESTAMP, document_id:INTEGER, etl_region:STRING, etl_date_updated:TIMESTAMP')
-                #                 },
-                #                 {
-                #                     'name': 'document_tag',
-                #                     'schema': ('id:INTEGER, document_id:INTEGER, tag_id:INTEGER, etl_region:STRING, etl_date_updated:TIMESTAMP')
-                #                 },
-                #                 {
-                #                     'name':'document_version',
-                #                     'schema':('id:INTEGER, files:STRING, date_created:TIMESTAMP, author_id:STRING, message:STRING, document_id:INTEGER, purged:BOOL, etl_region:STRING, etl_date_updated:TIMESTAMP')
-                #                 },
-                #                 {
-                #                     'name':'tag',
-                #                     'schema':('id:INTEGER, label:STRING, color:STRING, workspace_id:STRING, date_created:TIMESTAMP, date_modified:TIMESTAMP, etl_region:STRING, etl_date_updated:TIMESTAMP')
-                #                 },
-                #     ]
-                # },
+                { 
+                    'database': 'documents',
+                    'tables': [
+                                {
+                                    'name': 'document',
+                                    'schema': ('id:INTEGER, title:STRING, description:STRING, owner_id:STRING, workspace_id:STRING, archived:BOOL, date_created:TIMESTAMP, date_modified:TIMESTAMP, etl_region:STRING, etl_date_updated:TIMESTAMP')
+                                },
+                                {
+                                    'name':'document_access',
+                                    'schema': ('id:INTEGER, grantor_id:STRING,type:STRING, job_id:STRING, edit_permission:STRING, date_created:TIMESTAMP, date_modified:TIMESTAMP, document_id:INTEGER, etl_region:STRING, etl_date_updated:TIMESTAMP')
+                                },
+                                {
+                                    'name': 'document_tag',
+                                    'schema': ('id:INTEGER, document_id:INTEGER, tag_id:INTEGER, etl_region:STRING, etl_date_updated:TIMESTAMP')
+                                },
+                                {
+                                    'name':'document_version',
+                                    'schema':('id:INTEGER, files:STRING, date_created:TIMESTAMP, author_id:STRING, message:STRING, document_id:INTEGER, purged:BOOL, etl_region:STRING, etl_date_updated:TIMESTAMP')
+                                },
+                                {
+                                    'name':'tag',
+                                    'schema':('id:INTEGER, label:STRING, color:STRING, workspace_id:STRING, date_created:TIMESTAMP, date_modified:TIMESTAMP, etl_region:STRING, etl_date_updated:TIMESTAMP')
+                                },
+                    ]
+                },
 
-                # { 
-                #     'database':'iam',
-                #     'tables': [
-                #                 {
-                #                     'name':'device',
-                #                     'schema':('id:INTEGER, date_created:TIMESTAMP,  date_modified:TIMESTAMP, user_id:STRING, enabled:BOOL, data:STRING, etl_region:STRING, etl_date_updated:TIMESTAMP')
-                #                 },
-                #                 {
-                #                     'name':'invitation',
-                #                     'schema':('id:INTEGER, date_created:TIMESTAMP, date_modified:TIMESTAMP, email:STRING, token:STRING, workspace_id:INTEGER, workspace_role_id:INTEGER, team_id:INTEGER, team_role_id:INTEGER, expires:TIMESTAMP, created_by_user_id:STRING, status:STRING, etl_region:STRING, etl_date_updated:TIMESTAMP')
-                #                 },
-                #                 {
-                #                     'name':'role',
-                #                     'schema':('id:INTEGER, date_created:TIMESTAMP, date_modified:TIMESTAMP, workspace_id:INTEGER, name:STRING, description:STRING, is_owner_role:BOOL, permissions:STRING, etl_region:STRING, etl_date_updated:TIMESTAMP')
-                #                 },
-                #                 {
-                #                     'name':'role_member',
-                #                     'schema':('id:INTEGER, date_created:TIMESTAMP, date_modified:TIMESTAMP, member_id:INTEGER, role_id:INTEGER, etl_region:STRING, etl_date_updated:TIMESTAMP')
-                #                 },
-                #                 {
-                #                     'name':'skill',
-                #                     'schema':('id:INTEGER, date_created:TIMESTAMP, date_modified:TIMESTAMP, workspace_id:INTEGER, name:STRING, description:STRING, etl_region:STRING, etl_date_updated:TIMESTAMP')
-                #                 },
-                #                 {
-                #                     'name':'skill_member',
-                #                     'schema':('id:INTEGER, date_created:TIMESTAMP, date_modified:TIMESTAMP, member_id:INTEGER, skill_id:INTEGER, etl_region:STRING, etl_date_updated:TIMESTAMP')
-                #                 },
-                #                 {
-                #                     'name':'team',
-                #                     'schema':('id:INTEGER, date_created:TIMESTAMP, date_modified:TIMESTAMP, slug:STRING, name:STRING, owner_id:STRING, group_chat_conversation_id:INTEGER, inactive:BOOL, workspace_id:INTEGER, picture:STRING, address:STRING, team_purpose:STRING, etl_region:STRING, etl_date_updated:TIMESTAMP')
-                #                 },
-                #                 {
-                #                     'name':'team_member',
-                #                     'schema':('id:INTEGER, date_created:TIMESTAMP, date_modified:TIMESTAMP, workspace_id:INTEGER, team_id:INTEGER, user_id:STRING, inactive:BOOL, team_role_id:INTEGER, etl_region:STRING, etl_date_updated:TIMESTAMP')
-                #                 },
-                #                 {
-                #                     'name':'team_role',
-                #                     'schema':('id:INTEGER,  date_created:TIMESTAMP, date_modified:TIMESTAMP, workspace_id:INTEGER, name:STRING, is_owner_role:BOOL, description:STRING, permissions:STRING, etl_region:STRING, etl_date_updated:TIMESTAMP')
-                #                 },
-                #                 {
-                #                     'name':'workspace',
-                #                     'schema':('id:INTEGER, date_created:TIMESTAMP, date_modified:TIMESTAMP, slug:STRING, name:STRING, branding:STRING, config:STRING,  default_role_id:INTEGER, etl_region:STRING, etl_date_updated:TIMESTAMP')
-                #                 },
-                #                 {
-                #                     'name':'workspace_domain',
-                #                     'schema':('id:INTEGER, date_created:TIMESTAMP, date_modified:TIMESTAMP, workspace_id:INTEGER, domain:STRING, target:STRING, etl_region:STRING, etl_date_updated:TIMESTAMP')
-                #                 },
-                #                 {
-                #                     'name':'workspace_member',
-                #                     'schema':('id:INTEGER, date_created:TIMESTAMP, date_modified:TIMESTAMP, workspace_id:INTEGER, user_id:STRING, given_name:STRING, family_name:STRING, email:STRING, picture:STRING, phone:STRING, inactive:BOOL, max_concurrent_provider_jobs:INTEGER, member_permissions:STRING, notification_preferences:STRING, approved_terms_version:STRING, referrer:STRING, referrer_metadata:STRING, member_metadata:STRING, workspace_metadata:STRING, last_login:TIMESTAMP, last_seen:TIMESTAMP, etl_region:STRING, etl_date_updated:TIMESTAMP')
-                #                 },
-                #     ]
-                # },
+                { 
+                    'database':'iam',
+                    'tables': [
+                                {
+                                    'name':'device',
+                                    'schema':('id:INTEGER, date_created:TIMESTAMP,  date_modified:TIMESTAMP, user_id:STRING, enabled:BOOL, data:STRING, etl_region:STRING, etl_date_updated:TIMESTAMP')
+                                },
+                                {
+                                    'name':'invitation',
+                                    'schema':('id:INTEGER, date_created:TIMESTAMP, date_modified:TIMESTAMP, email:STRING, token:STRING, workspace_id:INTEGER, workspace_role_id:INTEGER, team_id:INTEGER, team_role_id:INTEGER, expires:TIMESTAMP, created_by_user_id:STRING, status:STRING, etl_region:STRING, etl_date_updated:TIMESTAMP')
+                                },
+                                {
+                                    'name':'role',
+                                    'schema':('id:INTEGER, date_created:TIMESTAMP, date_modified:TIMESTAMP, workspace_id:INTEGER, name:STRING, description:STRING, is_owner_role:BOOL, permissions:STRING, etl_region:STRING, etl_date_updated:TIMESTAMP')
+                                },
+                                {
+                                    'name':'role_member',
+                                    'schema':('id:INTEGER, date_created:TIMESTAMP, date_modified:TIMESTAMP, member_id:INTEGER, role_id:INTEGER, etl_region:STRING, etl_date_updated:TIMESTAMP')
+                                },
+                                {
+                                    'name':'skill',
+                                    'schema':('id:INTEGER, date_created:TIMESTAMP, date_modified:TIMESTAMP, workspace_id:INTEGER, name:STRING, description:STRING, etl_region:STRING, etl_date_updated:TIMESTAMP')
+                                },
+                                {
+                                    'name':'skill_member',
+                                    'schema':('id:INTEGER, date_created:TIMESTAMP, date_modified:TIMESTAMP, member_id:INTEGER, skill_id:INTEGER, etl_region:STRING, etl_date_updated:TIMESTAMP')
+                                },
+                                {
+                                    'name':'team',
+                                    'schema':('id:INTEGER, date_created:TIMESTAMP, date_modified:TIMESTAMP, slug:STRING, name:STRING, owner_id:STRING, group_chat_conversation_id:INTEGER, inactive:BOOL, workspace_id:INTEGER, picture:STRING, address:STRING, team_purpose:STRING, etl_region:STRING, etl_date_updated:TIMESTAMP')
+                                },
+                                {
+                                    'name':'team_member',
+                                    'schema':('id:INTEGER, date_created:TIMESTAMP, date_modified:TIMESTAMP, workspace_id:INTEGER, team_id:INTEGER, user_id:STRING, inactive:BOOL, team_role_id:INTEGER, etl_region:STRING, etl_date_updated:TIMESTAMP')
+                                },
+                                {
+                                    'name':'team_role',
+                                    'schema':('id:INTEGER,  date_created:TIMESTAMP, date_modified:TIMESTAMP, workspace_id:INTEGER, name:STRING, is_owner_role:BOOL, description:STRING, permissions:STRING, etl_region:STRING, etl_date_updated:TIMESTAMP')
+                                },
+                                {
+                                    'name':'workspace',
+                                    'schema':('id:INTEGER, date_created:TIMESTAMP, date_modified:TIMESTAMP, slug:STRING, name:STRING, branding:STRING, config:STRING,  default_role_id:INTEGER, etl_region:STRING, etl_date_updated:TIMESTAMP')
+                                },
+                                {
+                                    'name':'workspace_domain',
+                                    'schema':('id:INTEGER, date_created:TIMESTAMP, date_modified:TIMESTAMP, workspace_id:INTEGER, domain:STRING, target:STRING, etl_region:STRING, etl_date_updated:TIMESTAMP')
+                                },
+                                {
+                                    'name':'workspace_member',
+                                    'schema':('id:INTEGER, date_created:TIMESTAMP, date_modified:TIMESTAMP, workspace_id:INTEGER, user_id:STRING, given_name:STRING, family_name:STRING, email:STRING, picture:STRING, phone:STRING, inactive:BOOL, max_concurrent_provider_jobs:INTEGER, member_permissions:STRING, notification_preferences:STRING, approved_terms_version:STRING, referrer:STRING, referrer_metadata:STRING, member_metadata:STRING, workspace_metadata:STRING, last_login:TIMESTAMP, last_seen:TIMESTAMP, etl_region:STRING, etl_date_updated:TIMESTAMP')
+                                },
+                    ]
+                },
 
-                # { 
-                #     'database': 'jobs',
-                #     'tables': [
-                #                 {
-                #                     'name': 'job',
-                #                     'schema': ('id:STRING, workspace_id:STRING, answers:STRING, status:STRING, name:STRING, description:STRING, years:STRING, coverage_states:STRING, layerConversation:STRING, created_by:STRING, current_milestone_id:STRING, date_transmitted:TIMESTAMP, date_created:TIMESTAMP, date_start:TIMESTAMP, date_modified:TIMESTAMP, date_accepted:TIMESTAMP, date_closed:TIMESTAMP, date_reopened:TIMESTAMP, latest_paid_date:TIMESTAMP, paid_date:TIMESTAMP, primary_amount:FLOAT, federal_amount:FLOAT, state_amount:FLOAT, admin_fee_amount:FLOAT, gross_amount:FLOAT, coupon_amount:FLOAT, amended_amount:FLOAT, total:FLOAT, paid_amount:FLOAT, provider_cut_amount:FLOAT, provider_cut:FLOAT, latest_paid_amount:FLOAT, fees:STRING, coupon_ids:STRING, coupon_codes:STRING, amendments:STRING, job_specs:STRING, billing_type:STRING, stripe_charges:STRING, members:STRING, milestones:STRING, task_responses:STRING, info_lines:STRING, rating_submitted:INTEGER,rating_submitted_categories:STRING, rating_submitted_comment:STRING, rating_received:INTEGER, rating_received_categories:STRING, rating_received_comment:STRING, schema:INTEGER, owner_team_id:INTEGER, team_ids:STRING, legend_id:STRING, legend_name:STRING, legend_version:INTEGER, date_deadline:TIMESTAMP, stale:BOOL, purge_status:STRING, archived:BOOL, resolution:STRING, resolution_reason:STRING, etl_region:STRING, etl_date_updated:TIMESTAMP')
-                #                 },
-                #                 {
-                #                     'name': 'job_event',
-                #                     'schema': ('id:STRING, date_created:TIMESTAMP, event_type:STRING, event_visibility:STRING, job_id:STRING, description:STRING, triggered_by:STRING, data:STRING, etl_region:STRING, etl_date_updated:TIMESTAMP')
-                #                 },
-                #                 {
-                #                     'name': 'legend_cache',
-                #                     'schema': ('legend_version_id:STRING, legend_data:STRING, etl_region:STRING,etl_date_updated:TIMESTAMP')
-                #                 },
-                #     ]
-                # },
+                { 
+                    'database': 'jobs',
+                    'tables': [
+                                {
+                                    'name': 'job',
+                                    'schema': ('id:STRING, workspace_id:STRING, answers:STRING, status:STRING, name:STRING, description:STRING, years:STRING, coverage_states:STRING, layerConversation:STRING, created_by:STRING, current_milestone_id:STRING, date_transmitted:TIMESTAMP, date_created:TIMESTAMP, date_start:TIMESTAMP, date_modified:TIMESTAMP, date_accepted:TIMESTAMP, date_closed:TIMESTAMP, date_reopened:TIMESTAMP, latest_paid_date:TIMESTAMP, paid_date:TIMESTAMP, primary_amount:FLOAT, federal_amount:FLOAT, state_amount:FLOAT, admin_fee_amount:FLOAT, gross_amount:FLOAT, coupon_amount:FLOAT, amended_amount:FLOAT, total:FLOAT, paid_amount:FLOAT, provider_cut_amount:FLOAT, provider_cut:FLOAT, latest_paid_amount:FLOAT, fees:STRING, coupon_ids:STRING, coupon_codes:STRING, amendments:STRING, job_specs:STRING, billing_type:STRING, stripe_charges:STRING, members:STRING, milestones:STRING, task_responses:STRING, info_lines:STRING, rating_submitted:INTEGER,rating_submitted_categories:STRING, rating_submitted_comment:STRING, rating_received:INTEGER, rating_received_categories:STRING, rating_received_comment:STRING, schema:INTEGER, owner_team_id:INTEGER, team_ids:STRING, legend_id:STRING, legend_name:STRING, legend_version:INTEGER, date_deadline:TIMESTAMP, stale:BOOL, purge_status:STRING, archived:BOOL, resolution:STRING, resolution_reason:STRING, etl_region:STRING, etl_date_updated:TIMESTAMP')
+                                },
+                                {
+                                    'name': 'job_event',
+                                    'schema': ('id:STRING, date_created:TIMESTAMP, event_type:STRING, event_visibility:STRING, job_id:STRING, description:STRING, triggered_by:STRING, data:STRING, etl_region:STRING, etl_date_updated:TIMESTAMP')
+                                },
+                                {
+                                    'name': 'legend_cache',
+                                    'schema': ('legend_version_id:STRING, legend_data:STRING, etl_region:STRING,etl_date_updated:TIMESTAMP')
+                                },
+                    ]
+                },
 
-                # {
-                #     'database': 'legends',
-                #     'tables': [
-                #                 {
-                #                     'name':'legend',
-                #                     'schema':('id:STRING, workspace_id:STRING, inactive:BOOL, deactivated_by_id:STRING, date_deactivated:TIMESTAMP, etl_region:STRING, etl_date_updated:TIMESTAMP')
-                #                 },
-                #                 {
-                #                     'name':'legend_version',
-                #                     'schema':('id:STRING, legend_id:STRING, version:INTEGER, version_notes:STRING, name:STRING, description:STRING, published:BOOL, date_created:TIMESTAMP, date_modified:TIMESTAMP, date_published:TIMESTAMP, last_updated_by_id:STRING, view_order:INTEGER, concurrency_version:INTEGER, engine_version:STRING, data:STRING, etl_region:STRING, etl_date_updated:TIMESTAMP')
-                #                 },
-                #     ]
-                # },
+                {
+                    'database': 'legends',
+                    'tables': [
+                                {
+                                    'name':'legend',
+                                    'schema':('id:STRING, workspace_id:STRING, inactive:BOOL, deactivated_by_id:STRING, date_deactivated:TIMESTAMP, etl_region:STRING, etl_date_updated:TIMESTAMP')
+                                },
+                                {
+                                    'name':'legend_version',
+                                    'schema':('id:STRING, legend_id:STRING, version:INTEGER, version_notes:STRING, name:STRING, description:STRING, published:BOOL, date_created:TIMESTAMP, date_modified:TIMESTAMP, date_published:TIMESTAMP, last_updated_by_id:STRING, view_order:INTEGER, concurrency_version:INTEGER, engine_version:STRING, data:STRING, etl_region:STRING, etl_date_updated:TIMESTAMP')
+                                },
+                    ]
+                },
 
-                # {
-                #     'database': 'messages',
-                #     'tables': [
-                #                 {
-                #                     'name':'conversation',
-                #                     'schema':('id:INTEGER, workspace_id:INTEGER, name:STRING, created_by_user_id:STRING, active:BOOL, external_id:STRING, meta:STRING, date_created:TIMESTAMP, date_modified:TIMESTAMP, etl_region:STRING, etl_date_updated:TIMESTAMP')
-                #                 },
-                #                 {
-                #                     'name': 'conversation_participant',
-                #                     'schema':('id:INTEGER, conversation_id:INTEGER, user_id:STRING, active:BOOL, type:STRING, last_seen:TIMESTAMP, date_created:TIMESTAMP, date_modified:TIMESTAMP, etl_region:STRING, etl_date_updated:TIMESTAMP')
-                #                 },
-                #                 {
-                #                     'name':'message',
-                #                     'schema':('id:INTEGER, conversation_id:INTEGER, user_id:STRING, content:STRING, mentions:STRING, active:BOOL, date_created:TIMESTAMP, date_modified:TIMESTAMP, etl_region:STRING, etl_date_updated:TIMESTAMP')
-                #                 },
-                #                 {
-                #                     'name':'message_status',
-                #                     'schema':('id:INTEGER, message_id:INTEGER, active:BOOL, user_id:STRING, status:STRING, date_created:TIMESTAMP, date_modified:TIMESTAMP, etl_region:STRING, etl_date_updated:TIMESTAMP')
-                #                 }
-                #     ]
-                # }
+                {
+                    'database': 'messages',
+                    'tables': [
+                                {
+                                    'name':'conversation',
+                                    'schema':('id:INTEGER, workspace_id:INTEGER, name:STRING, created_by_user_id:STRING, active:BOOL, external_id:STRING, meta:STRING, date_created:TIMESTAMP, date_modified:TIMESTAMP, etl_region:STRING, etl_date_updated:TIMESTAMP')
+                                },
+                                {
+                                    'name': 'conversation_participant',
+                                    'schema':('id:INTEGER, conversation_id:INTEGER, user_id:STRING, active:BOOL, type:STRING, last_seen:TIMESTAMP, date_created:TIMESTAMP, date_modified:TIMESTAMP, etl_region:STRING, etl_date_updated:TIMESTAMP')
+                                },
+                                {
+                                    'name':'message',
+                                    'schema':('id:INTEGER, conversation_id:INTEGER, user_id:STRING, content:STRING, mentions:STRING, active:BOOL, date_created:TIMESTAMP, date_modified:TIMESTAMP, etl_region:STRING, etl_date_updated:TIMESTAMP')
+                                },
+                                {
+                                    'name':'message_status',
+                                    'schema':('id:INTEGER, message_id:INTEGER, active:BOOL, user_id:STRING, status:STRING, date_created:TIMESTAMP, date_modified:TIMESTAMP, etl_region:STRING, etl_date_updated:TIMESTAMP')
+                                }
+                    ]
+                }
 ]
 
 def get_db_source_config(pipeline_options, database):
@@ -223,7 +223,7 @@ class UserOptions(PipelineOptions):
         parser.add_value_provider_argument('--dest_bucket', type=str, dest='dest_bucket', default='no_bucket')
         parser.add_value_provider_argument('--etl_region', type=str, dest='etl_region', default='no_region')
        
-       
+
 def run(argv=None):
     logging.getLogger().setLevel(logging.DEBUG)
     logging.info("printing arguments")
