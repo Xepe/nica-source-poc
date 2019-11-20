@@ -1,0 +1,8 @@
+# Contains miscellaneous resources used in the pipeline
+
+resources:
+  # The resource that sends slack notifications to the developers channel
+  - name: notify
+    type: slack-notification
+    icon: slack
+    source: { url: ((ci_secrets.slack_webhook)) }

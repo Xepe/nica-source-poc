@@ -1,4 +1,5 @@
 resource "google_app_engine_application" "app" {
-  project     = "${var.service_project}"
-  location_id = "${var.service_project_app_engine_location_id}"
+  count       = length(var.regions)
+  project     = var.data_project
+  location_id = lookup(var.regions[count.index], "region")
 }

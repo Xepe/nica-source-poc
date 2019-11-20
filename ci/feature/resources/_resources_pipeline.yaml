@@ -1,0 +1,24 @@
+# These are the resources that are necessary for each of our pipelines
+# The ((PROJECT_ID)) is substituted when the pipeline is set using the --var flag
+#
+# ex: fly -t taxfyle set-pipeline -p iam-api -c feature.yaml --load-vars-from secrets-config.yaml --var PROJECT_ID=iam-api
+
+resources:
+  # The git repo of the project for this pipeline
+  - name: ((PROJECT_ID))-repo
+    type: custom-git
+    icon: github-circle
+    source: &project_source
+      uri: git@github.com:taxfyle/((PROJECT_ID)).git
+      branch: ((BRANCH_NAME))
+      private_key: ((ci_secrets.git_private_key))
+      fetch_tags: true
+
+  # GitHub status resource
+  - name: status
+    type: github-status
+    icon: github-box
+    source:
+      repo: taxfyle/((PROJECT_ID))
+      access_token: ((ci_secrets.git_access_token))
+      branch: 'develop'

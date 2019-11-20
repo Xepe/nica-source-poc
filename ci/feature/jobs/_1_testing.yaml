@@ -1,0 +1,33 @@
+# The job that lints and runs tests
+jobs:
+  # Lint and run tests
+  - name: Validate terraform config
+    public: false
+    plan:
+
+    # Pull the project repo and script repo in parallel
+    - aggregate:
+      - get: ((PROJECT_ID))-repo
+        trigger: true
+        params:
+          depth: 1
+
+    - *pending_task
+
+    - aggregate:
+      # Check that terraform has been formatted (terraform fmt)
+      - task: Terraform fmt and validate
+        config: 
+          platform: linux
+          image_resource: *taxfyle_ci
+          inputs:
+          - name: ((PROJECT_ID))-repo
+          run:
+            path: bash
+            args:
+              - -ec
+              - terraform fmt -check=true 
+            dir: ((PROJECT_ID))-repo/infrastructure/terraform
+        <<: *on_failure
+
+    - *success_task

@@ -1,1 +1,7 @@
 .idea/
+
+.terraform
+.tfstate
+plan.out
+.tfstate.backup
+gcs_backend_creds

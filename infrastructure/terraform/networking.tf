@@ -3,7 +3,7 @@
 
 # Setting_up_shred vpc (Setting rights)
 #  https://cloud.google.com/vpc/docs/provisioning-shared-vpc#setting_up_shared_vpc
-  
+
 #  An Organization Admin can grant one or more IAM members the "Shared VPC Admin" and "Project IAM Admin" roles. 
 #  The Project IAM Admin role grants Shared VPC Admins permission to share all existing and future subnets, 
 #  not just individual subnets. This grant creates a binding at the organization or folder level, not the project level. 
@@ -16,12 +16,12 @@
 
 # A host project provides network resources to associated service projects.
 resource "google_compute_shared_vpc_host_project" "main" {
-    project = "${var.host_project}"
+  project = var.main_project
 }
 
 # A service project gains access to network resources provided by its associated host project.
 resource "google_compute_shared_vpc_service_project" "data" {
-    host_project    = "${var.host_project}"
-    service_project = "${var.service_project}"
-    depends_on = [google_compute_shared_vpc_host_project.main]
+  host_project    = var.main_project
+  service_project = var.data_project
+  depends_on      = [google_compute_shared_vpc_host_project.main]
 }

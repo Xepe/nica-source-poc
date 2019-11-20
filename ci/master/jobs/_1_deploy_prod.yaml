@@ -1,0 +1,39 @@
+jobs:
+  - name: Deploy production
+    public: false
+    plan:
+    - aggregate:
+      - get: ((PROJECT_ID))-repo
+        passed: ["Deploy staging"]
+        trigger: false
+        params:
+          depth: 1
+
+    - *pending_task
+
+    - task: Apply terraform
+      config:
+        platform: linux
+        image_resource: *sandbox_image
+        inputs:
+        - name: ((PROJECT_ID))-repo
+        run:
+          path: bash
+          args:
+            - -ec
+            - |
+              source /assets/common.sh
+              git_auth "${GIT_PRIVATE_KEY}"
+              gcloud_login "${GCP_SERVICE_ACCOUNT}"
+              curl --fail --silent --show-error --request POST --data '{"role_id":"'$ROLE_ID'","secret_id":"'$SECRET_ID'"}' https://vault.taxfyle.io:8200/v1/auth/approle/login -k | jq -r '.auth.client_token' > ~/.vault-token
+              make deploy
+          dir: ((PROJECT_ID))-repo
+      params:
+        ENV_NAME: production
+        SECRET_ID: ((ci_secrets.vault_secret_id))
+        ROLE_ID: ((ci_secrets.vault_role_id))
+        GIT_PRIVATE_KEY: ((ci_secrets.git_private_key))
+        GCP_SERVICE_ACCOUNT: ((ci_secrets.gcp_service_account))
+      <<: *on_failure
+
+    - *success_task

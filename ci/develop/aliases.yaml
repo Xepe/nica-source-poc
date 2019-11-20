@@ -1,0 +1,40 @@
+pending_task: &pending_task
+  put: status
+  params:
+    path: ((PROJECT_ID))-repo
+    state: "pending"
+
+failure_task: &failure_task
+  do:
+    - put: status
+      params:
+        path: ((PROJECT_ID))-repo
+        state: "failure"
+    - put: notify
+      params:
+        text: 'Develop pipeline "((PROJECT_ID))" failed. See more at https://concourse.taxfyle.io/teams/develop/pipelines/((PROJECT_ID))'
+
+success_task: &success_task
+  put: status
+  params:
+    path: ((PROJECT_ID))-repo
+    state: "success"
+
+on_failure: &on_failure
+  on_failure: *failure_task
+  on_error: *failure_task
+  on_abort: *failure_task
+
+taxfyle_ci: &taxfyle_ci
+  type: registry-image
+  source:
+    repository: us.gcr.io/taxfyle-ci/ci
+    username: _json_key
+    password: ((ci_secrets.gcp_service_account))
+
+sandbox_image: &sandbox_image
+  type: registry-image
+  source:
+    repository: us.gcr.io/taxfyle-ci/sandbox-image
+    username: _json_key
+    password: ((ci_secrets.gcp_service_account))
