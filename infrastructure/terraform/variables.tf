@@ -1,47 +1,36 @@
-variable "host_project" {
-  type = "string"
+variable "cluster_name" {
+  type = string
 }
 
-variable "service_project" {
-  type = "string"
+variable "main_project" {
+  type = string
 }
 
-variable "network_region" {
-  type = "string"
-} 
+variable "data_project" {
+  type = string
+}
 
-variable "host_project_sub_network" {
-  type = "string"
-} 
-
-variable "timezone" {
-  type = "string"
-} 
-
-variable "service_project_app_engine_location_id" {
-  type = "string"
-} 
-
-variable "etl_region" {
-  type = "string"
-} 
+variable "main_project_sub_network" {
+  type = string
+}
 
 variable "dest_dataset" {
-  type = "string"
+  type = string
 }
-
-variable "db_host" {
-  type = "string"
-}
-
 variable "db_port" {
-  type = "string"
+  type    = string
+  default = "5432"
 }
 
 variable "db_user" {
-  type = "string"
+  type    = string
+  default = "postgres"
 }
 
-variable "db_password" {
-  type = "string"
+variable "regions" {
+  type = list(object({
+    name                      = string
+    region                    = string
+    bigquery_dataset_location = string
+  }))
 }

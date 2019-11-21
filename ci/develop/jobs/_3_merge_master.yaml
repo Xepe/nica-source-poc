@@ -1,0 +1,13 @@
+jobs:
+  - name: Push to master
+    public: false
+    plan:
+    - aggregate:
+      - get: ((PROJECT_ID))-repo
+        trigger: true
+        passed: ["Deploy QA"]
+      - get: ((PROJECT_ID))-repo-master
+
+    - put: ((PROJECT_ID))-repo-master
+      params:
+        repository: ((PROJECT_ID))-repo

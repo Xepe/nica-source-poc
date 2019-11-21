@@ -1,0 +1,15 @@
+# List of resource types that are not built into concourse
+resource_types:
+  # Resource type to send notifications to slack
+  - name: slack-notification
+    type: registry-image
+    source: { repository: cfcommunity/slack-notification-resource }
+  # Resource to interact with GitHub Status
+  - name: github-status
+    type: registry-image
+    source:
+      repository: resource/github-status
+  - name: custom-git
+    type: registry-image
+    source:
+      repository: nkeenan38/git-resource
