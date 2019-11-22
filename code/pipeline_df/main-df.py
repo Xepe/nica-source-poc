@@ -4,7 +4,7 @@ import logging
 import apache_beam as beam
 from beam_nuggets.io import relational_db
 from apache_beam.options.pipeline_options import GoogleCloudOptions, PipelineOptions, SetupOptions, StandardOptions, WorkerOptions
-import base64
+import json
 
 db_schemas = [   
                 # {
@@ -186,96 +186,139 @@ db_schemas = [
                 }
 ]
 
-def get_db_source_config(pipeline_options, database):
-
-    return relational_db.SourceConfiguration(
-            drivername  = 'postgresql+pg8000',
-            host        = str(pipeline_options.db_host),
-            port        = int(str(pipeline_options.db_port)),
-            username    = str(pipeline_options.db_user),
-            password    = str(pipeline_options.db_password),
-            database    = database
-        )
-
-def fix_dates(element, etl_region):
-    import datetime
-    for key,value in element.items():
-
-        if isinstance(value, datetime.datetime) or isinstance(value, dict) or isinstance(value, list):
-            element[key] = str(value)
-
-    now = datetime.datetime.now().isoformat()
-    element.update({'etl_region': etl_region, 'etl_date_updated': str(now)})
-
-    print(element.items())
-
-    return element
-
 
 class UserOptions(PipelineOptions):
     @classmethod
     def _add_argparse_args(cls, parser):
         parser.add_value_provider_argument('--db_host', type=str, dest='db_host', default='no_host')
-        parser.add_value_provider_argument('--db_port', type=int, dest='db_port', default=0, required=False)
+        parser.add_value_provider_argument('--db_port', type=int, dest='db_port', default=0)
         parser.add_value_provider_argument('--db_user', type=str, dest='db_user', default='no_user')
         parser.add_value_provider_argument('--db_password', type=str, dest='db_password', default='no_password')
         parser.add_value_provider_argument('--dest_dataset', type=str, dest='dest_dataset', default='no_dataset')
         parser.add_value_provider_argument('--dest_bucket', type=str, dest='dest_bucket', default='no_bucket')
         parser.add_value_provider_argument('--etl_region', type=str, dest='etl_region', default='no_region')
-       
+
+
+def get_db_source_config(pipeline_options, database):
+    user_options = pipeline_options.view_as(UserOptions)
+    return relational_db.SourceConfiguration(
+        drivername='postgresql+pg8000',
+        host=str(user_options.db_host),
+        port=int(str(user_options.db_port)),
+        username=str(user_options.db_user),
+        password=str(user_options.db_password),
+        database=database
+    )
+
+
+def fix_jsons(element):
+    def has_valid_fields(obj):
+        result = True
+        for key, value in obj.items():
+            if key.isnumeric():
+                result = False
+                break
+        return result
+
+    def fix_invalid_key(obj):
+        for key, value in obj.items():
+            if key.isnumeric():
+                del obj[key]
+                obj['_{}'.format(key)] = value
+        return obj
+
+    def convert_invalid_json_to_valid_json(parent, key, value):
+        if isinstance(value, list):
+            for item in value:
+                if isinstance(item, dict) or isinstance(item, list):
+                    convert_invalid_json_to_valid_json(parent, key, item)
+
+        if isinstance(value, dict):
+            if has_valid_fields(value):
+                for k, v in value.items():
+                    convert_invalid_json_to_valid_json(value, k, v)
+            else:
+                parent[key] = fix_invalid_key(value)
+
+    for field_key, field_value in element.items():
+        if isinstance(field_value, dict) or isinstance(field_value, list):
+            convert_invalid_json_to_valid_json(element, field_key, field_value)
+
+    return element
+
+
+def fix_dates(element):
+    import datetime
+    #  fix datetimes
+    for key, value in element.items():
+        if isinstance(value, datetime.datetime):
+            element[key] = str(value)
+    return element
+
+
+def add_extra_fields(element, etl_region):
+    import datetime
+    # add extra fields
+    now = datetime.datetime.now().isoformat()
+    element.update({'etl_region': etl_region, 'etl_date_updated': str(now)})
+    return element
+
 
 def run(argv=None):
-    logging.getLogger().setLevel(logging.DEBUG)
-    logging.info("printing arguments")
+    logging.getLogger().setLevel(logging.INFO)
 
-    """Main entry point; defines and runs the data pipeline."""
-    parser = argparse.ArgumentParser()    
-    known_args, pipeline_args = parser.parse_known_args(argv)
+    try:
+        """Main entry point; defines and runs the data pipeline."""
+        parser = argparse.ArgumentParser()
+        known_args, pipeline_args = parser.parse_known_args(argv)
 
-    print ("conocidos")
-    print(known_args)
-    print ("pipeline")
-    print (pipeline_args)
+        logging.info("Printing arguments")
+        logging.info('Known parameters: {}'.format(known_args))
+        logging.info('Pipeline parameters: {}'.format(pipeline_args))
 
-    # We use the save_main_session option because one or more DoFn's in this
-    # workflow rely on global context (e.g., a module imported at module level).
-    pipeline_options = UserOptions(pipeline_args)
-    # pipeline_options.view_as(SetupOptions).save_main_session = True
+        pipeline_options = PipelineOptions(pipeline_args)
+        # We use the save_main_session option because one or more DoFn's in this
+        # workflow rely on global context (e.g., a module imported at module level).
+        pipeline_options.view_as(SetupOptions).save_main_session = True
 
-    google_cloud_options = pipeline_options.view_as(GoogleCloudOptions)
-    project = str(google_cloud_options.project)
-    etl_region = str(pipeline_options.etl_region)
-    dataset = str(pipeline_options.dest_dataset)
-    bucket = str(pipeline_options.dest_bucket)
+        google_cloud_options = pipeline_options.view_as(GoogleCloudOptions)
+        project = str(google_cloud_options.project)
+        region = str(google_cloud_options.region)
 
-    timestamp = datetime.datetime.now().isoformat()
-    gcp_bucket = 'gs://{}/raw'.format(bucket)
+        user_options = pipeline_options.view_as(UserOptions)
+        etl_region = str(user_options.etl_region)
+        dataset = str(user_options.dest_dataset)
+        bucket = str(user_options.dest_bucket)
 
-    with beam.Pipeline(options=pipeline_options) as p:
+        timestamp = datetime.datetime.now().isoformat()
+        gcp_bucket = 'gs://{}/raw'.format(bucket)
 
-        for d in db_schemas:
-            for e in list({"database": d['database'], "table": j} for j in d['tables']):
+        with beam.Pipeline(options=pipeline_options) as p:
+            for d in db_schemas:
+                for e in list({"database": d['database'], "table": j} for j in d['tables']):
+                    logging.info("Processing record: {}".format(e))
 
-                print("Processing record: {}".format(e))
+                    source_config = get_db_source_config(pipeline_options, e['database'])
 
-                source_config = get_db_source_config(pipeline_options, e['database'])
+                    records = p | "Reading records from db/table: {}[{}]".format(d['database'], e['table']['name']) >> relational_db.ReadFromDB(source_config=source_config, table_name=e['table']['name']) \
+                                | "Fixing dates for: {}[{}]".format(d['database'], e['table']['name']) >> beam.Map(fix_dates) \
+                                | "Fixing JSON objects for: {}[{}]".format(d['database'], e['table']['name']) >> beam.Map(fix_jsons) \
+                                | "Adding extra fields for: {}[{}] ".format(d['database'], e['table']['name']) >> beam.Map(add_extra_fields, etl_region) \
+                                | "Converting to valid BigQuery JSON for: {}[{}] ".format(d['database'], e['table']['name']) >> beam.Map(json.dumps)
 
-                records = p | "Reading records from db/table: {}[{}]".format(d['database'], e['table']['name']) \
-                    >> relational_db.ReadFromDB(source_config=source_config, table_name=e['table']['name']) \
-                    | "Pre-processing pipeline records for: {}[{}]".format(d['database'], e['table']['name']) \
-                    >> beam.Map(fix_dates, etl_region)
+                    records | "Writing records to raw storage for: {}[{}]".format(d['database'], e['table']['name']) >> beam.io.WriteToText('{}/{}/{}/{}.jsonl'.format(gcp_bucket, e['database'], timestamp, e['table']['name']))
 
-                records | "Writing records to raw storage for: {}[{}]".format(d['database'], e['table']['name']) \
-                    >> beam.io.WriteToText('{}/{}/{}/{}.jsonl'.format(gcp_bucket, e['database'], timestamp, e['table']['name']))
+                    records | "Writing records to BQ for: {}[{}]".format(d['database'], e['table']['name']) \
+                        >> beam.io.WriteToBigQuery('{}:{}.{}'.format(project, dataset, e['table']['name']),
+                            # schema=e['table']['schema'],
+                            schema= None,
+                            # Creates the table in BigQuery if it does not yet exist.
+                            create_disposition=beam.io.BigQueryDisposition.CREATE_NEVER,
+                            # Deletes all data in the BigQuery table before writing.
+                            write_disposition=beam.io.BigQueryDisposition.WRITE_APPEND)
 
-                records | "Writing records to BQ for: {}[{}]".format(d['database'], e['table']['name']) \
-                    >> beam.io.WriteToBigQuery(
-                         '{}:{}.{}'.format(project, dataset, e['table']['name']),
-                          schema=e['table']['schema'],
-                         # Creates the table in BigQuery if it does not yet exist.
-                         create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
-                         # Deletes all data in the BigQuery table before writing.
-                         write_disposition=beam.io.BigQueryDisposition.WRITE_APPEND)
+    except Exception as e:
+        logging.error('Error creating pipeline. Details:{}'.format(e))
 
 
 if __name__ == '__main__':
