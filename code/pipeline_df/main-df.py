@@ -351,8 +351,10 @@ def run(argv=None):
         dataset = str(user_options.dest_dataset)
         bucket = str(user_options.dest_bucket)
 
+
         timestamp = datetime.datetime.now().isoformat()
         gcp_bucket = 'gs://{}/raw'.format(bucket)
+        staging_bucket = 'gs://{}-staging-{}'.format(project, etl_region)
 
         with beam.Pipeline(options=pipeline_options) as p:
             for d in db_schemas:
@@ -368,7 +370,8 @@ def run(argv=None):
                                 | "Adding extra fields for: {}[{}] ".format(d['database'], e['table']['name']) >> beam.Map(add_extra_fields, etl_region) \
                                 | "Converting to valid BigQuery JSON for: {}[{}] ".format(d['database'], e['table']['name']) >> beam.Map(json.dumps)
 
-                    records | "Writing records to raw storage for: {}[{}]".format(d['database'], e['table']['name']) >> beam.io.WriteToText('{}/{}/{}/{}.jsonl'.format(gcp_bucket, e['database'], timestamp, e['table']['name']))
+                    records | "Writing records to staging storage for: {}[{}]".format(d['database'], e['table']['name']) >> beam.io.WriteToText('{}/{}.jsonl'.format(staging_bucket, e['table']['name'])) \
+                            | "Writing records to raw storage for: {}[{}]".format(d['database'], e['table']['name']) >> beam.io.WriteToText('{}/{}/{}/{}.jsonl'.format(gcp_bucket, e['database'], timestamp, e['table']['name']))
 
                     records | "Writing records to BQ for: {}[{}]".format(d['database'], e['table']['name']) \
                         >> beam.io.WriteToBigQuery('{}:{}.{}'.format(project, dataset, e['table']['name']),
