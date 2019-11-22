@@ -3,8 +3,9 @@ import datetime
 import logging
 import apache_beam as beam
 from beam_nuggets.io import relational_db
-from apache_beam.options.pipeline_options import GoogleCloudOptions, PipelineOptions, SetupOptions, StandardOptions, WorkerOptions
+from apache_beam.options.pipeline_options import GoogleCloudOptions, PipelineOptions, SetupOptions
 import json
+from genson import SchemaBuilder
 
 db_schemas = [   
                 # {
@@ -247,6 +248,66 @@ def fix_jsons(element):
     return element
 
 
+def fix_json_arrays_with_different_schema(element):
+    from genson import SchemaBuilder
+
+    def convert_value_to_string(value):
+        if value is None or isinstance(value, bool):
+            return json.dumps(value)
+        else:
+            return str(value)
+
+    def analyze_list(elements):
+        has_objects = False
+        for item in elements:
+            if isinstance(item, dict):
+                has_objects = True
+                break
+        if not has_objects:
+            return
+
+        builder = SchemaBuilder()
+        for obj in elements:
+            builder.add_object(obj)
+
+        json_schema = json.loads(builder.to_json())
+        properties = json_schema['properties']
+        properties_to_modify = []
+
+        for prop in properties:
+            if 'anyOf' in properties[prop] or 'type' in properties[prop] and isinstance(properties[prop]['type'], list):
+                properties_to_modify.append(prop)
+
+        for property_to_modify in properties_to_modify:
+            for obj in elements:
+                new_values = []
+                if isinstance(obj[property_to_modify], list):
+                    for value in obj[property_to_modify]:
+                        new_values.append(convert_value_to_string(value))
+                else:
+                    new_values.append(convert_value_to_string(obj[property_to_modify]))
+                obj[property_to_modify] = new_values
+
+    def analyze_json_object(parent, key, value):
+        if isinstance(value, list):
+            for item in value:
+                if isinstance(item, dict) or isinstance(item, list):
+                    analyze_json_object(parent, key, item)
+
+        if isinstance(value, dict):
+            for k, v in value.items():
+                analyze_json_object(value, k, v)
+
+        if isinstance(value, list):
+            analyze_list(value)
+
+    for field_key, field_value in element.items():
+        if isinstance(field_value, dict) or isinstance(field_value, list):
+            analyze_json_object(element, field_key, field_value)
+
+    return element
+
+
 def fix_dates(element):
     import datetime
     #  fix datetimes
@@ -303,6 +364,7 @@ def run(argv=None):
                     records = p | "Reading records from db/table: {}[{}]".format(d['database'], e['table']['name']) >> relational_db.ReadFromDB(source_config=source_config, table_name=e['table']['name']) \
                                 | "Fixing dates for: {}[{}]".format(d['database'], e['table']['name']) >> beam.Map(fix_dates) \
                                 | "Fixing JSON objects for: {}[{}]".format(d['database'], e['table']['name']) >> beam.Map(fix_jsons) \
+                                | "Fixing JSON arrays for: {}[{}]".format(d['database'], e['table']['name']) >> beam.Map(fix_json_arrays_with_different_schema) \
                                 | "Adding extra fields for: {}[{}] ".format(d['database'], e['table']['name']) >> beam.Map(add_extra_fields, etl_region) \
                                 | "Converting to valid BigQuery JSON for: {}[{}] ".format(d['database'], e['table']['name']) >> beam.Map(json.dumps)
 
