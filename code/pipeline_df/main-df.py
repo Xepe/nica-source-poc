@@ -150,6 +150,25 @@ def add_extra_fields(element, etl_region):
     return element
 
 
+def publish_to_pubsub(etl_region, project, region, dest_dataset):
+    import logging
+    from google.cloud import pubsub_v1
+    logging.getLogger().setLevel(logging.INFO)
+    post_processing_topic = 'post-dataflow-processing-topic'
+    logging.info("Sending message to projects/{}/topics/{}".format(project, post_processing_topic))
+    publisher = pubsub_v1.PublisherClient()
+    topic_path = publisher.topic_path(project, post_processing_topic)
+    message = {
+        'project': project,
+        'region': region,
+        'dest_dataset': dest_dataset,
+        'etl_region': etl_region
+    }
+    data = json.dumps(message).encode('utf-8')
+    future = publisher.publish(topic_path, data=data)
+    logging.info("Pubsub message Id: {}. Sent message {}".format(future.result(), data))
+
+
 def run(argv=None):
     logging.getLogger().setLevel(logging.INFO)
 
@@ -196,8 +215,11 @@ def run(argv=None):
                                 | "Adding extra fields for: {}[{}] ".format(d['database'], e['table']['name']) >> beam.Map(add_extra_fields, etl_region) \
                                 | "Converting to valid BigQuery JSON for: {}[{}] ".format(d['database'], e['table']['name']) >> beam.Map(json.dumps)
 
-                    records | "Writing records to staging storage for: {}[{}]".format(d['database'], e['table']['name']) >> beam.io.WriteToText('{}/{}.jsonl'.format(staging_bucket, e['table']['name'])) \
-                            | "Writing records to raw storage for: {}[{}]".format(d['database'], e['table']['name']) >> beam.io.WriteToText('{}/{}/{}/{}.jsonl'.format(gcp_bucket, e['database'], timestamp, e['table']['name']))
+                    re = records | "Writing records to staging storage for: {}[{}]".format(d['database'], e['table']['name']) >> beam.io.WriteToText('{}/{}.jsonl'.format(staging_bucket, e['table']['name'])) \
+                                 | "Writing records to raw storage for: {}[{}]".format(d['database'], e['table']['name']) >> beam.io.WriteToText('{}/{}/{}/{}.jsonl'.format(gcp_bucket, e['database'], timestamp, e['table']['name'])) \
+                                 | "Getting Region to send PubSub message" >> beam.Map(lambda element: etl_region)
+
+                    re | "Sending message to PubSub" >> beam.Map(publish_to_pubsub, project, region, dataset)
 
     except Exception as e:
         logging.error('Error creating pipeline. Details:{}'.format(e))
