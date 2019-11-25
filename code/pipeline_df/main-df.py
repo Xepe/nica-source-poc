@@ -351,7 +351,6 @@ def run(argv=None):
         dataset = str(user_options.dest_dataset)
         bucket = str(user_options.dest_bucket)
 
-
         timestamp = datetime.datetime.now().isoformat()
         gcp_bucket = 'gs://{}/raw'.format(bucket)
         staging_bucket = 'gs://{}-staging-{}'.format(project, etl_region)
@@ -372,15 +371,6 @@ def run(argv=None):
 
                     records | "Writing records to staging storage for: {}[{}]".format(d['database'], e['table']['name']) >> beam.io.WriteToText('{}/{}.jsonl'.format(staging_bucket, e['table']['name'])) \
                             | "Writing records to raw storage for: {}[{}]".format(d['database'], e['table']['name']) >> beam.io.WriteToText('{}/{}/{}/{}.jsonl'.format(gcp_bucket, e['database'], timestamp, e['table']['name']))
-
-                    records | "Writing records to BQ for: {}[{}]".format(d['database'], e['table']['name']) \
-                        >> beam.io.WriteToBigQuery('{}:{}.{}'.format(project, dataset, e['table']['name']),
-                            # schema=e['table']['schema'],
-                            schema= None,
-                            # Creates the table in BigQuery if it does not yet exist.
-                            create_disposition=beam.io.BigQueryDisposition.CREATE_NEVER,
-                            # Deletes all data in the BigQuery table before writing.
-                            write_disposition=beam.io.BigQueryDisposition.WRITE_APPEND)
 
     except Exception as e:
         logging.error('Error creating pipeline. Details:{}'.format(e))
