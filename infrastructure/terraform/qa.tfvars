@@ -14,3 +14,6 @@ regions = [
     bigquery_dataset_location = "US"
   }
 ]
+
+# Dataflow Job notification
+notification_email = "roly.vicaria@taxfyle.com"
