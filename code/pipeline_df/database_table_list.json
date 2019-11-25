@@ -1,0 +1,70 @@
+[
+    {
+        "database" : "billing",
+        "tables" : [
+            { "name" : "billing_method" },
+            { "name" : "billing_profile" },
+            { "name" : "coupon" },
+            { "name" : "user_coupon" },
+            { "name" : "credit_transactions" },
+            { "name" : "payout_method" }
+        ]
+    },
+    {
+        "database" : "documents",
+        "tables" : [
+            { "name" : "document" },
+            { "name" : "document_access" },
+            { "name" : "document_tag" },
+            { "name" : "document_version" },
+            { "name" : "tag" }
+        ]
+    },
+    {
+        "database" : "iam",
+        "tables" : [
+            { "name" : "device" },
+            { "name" : "invitation" },
+            { "name" : "role" },
+            { "name" : "role_member" },
+            { "name" : "skill" },
+            { "name" : "skill_member" },
+            { "name" : "team" },
+            { "name" : "team_member" },
+            { "name" : "team_role" },
+            { "name" : "workspace" },
+            { "name" : "workspace_domain" },
+            { "name" : "workspace_member" }
+        ]
+    },
+    {
+        "database" : "jobs",
+        "tables" : [
+            { "name" : "job" },
+            { "name" : "job_event" },
+            { "name" : "legend_cache" }
+        ]
+    },
+    {
+        "database" : "legends",
+        "tables" : [
+            { "name" : "legend" },
+            { "name" : "legend_version" }
+        ]
+    },
+    {
+        "database" : "messages",
+        "tables" : [
+            { "name" : "conversation" },
+            { "name" : "conversation_participant" },
+            { "name" : "message" },
+            { "name" : "message_status" }
+        ]
+    },
+    {
+        "database" : "notifications",
+        "tables" : [
+            { "name" : "notifications" }
+        ]
+    }
+]
