@@ -34,3 +34,7 @@ variable "regions" {
     bigquery_dataset_location = string
   }))
 }
+
+variable "notification_email" {
+  type = "string"
+}
