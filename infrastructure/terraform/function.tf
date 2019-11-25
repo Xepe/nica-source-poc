@@ -20,7 +20,7 @@ resource "google_cloudfunctions_function" "trigger-pipeline-template-function" {
 # post_dataflow_processing_function
 resource "google_cloudfunctions_function" "post-dataflow-processing" {
     count           = length(var.regions)
-    project         = "var.data_project
+    project         = var.data_project
     region          = lookup(var.regions[count.index], "region")
     name            = "post_dataflow_processing"
     description     = "Execute post processing actions after pipeline execution"
@@ -31,7 +31,7 @@ resource "google_cloudfunctions_function" "post-dataflow-processing" {
     source_archive_object = "${google_storage_bucket_object.post_dataflow_processing_zip.name}"
     event_trigger {
         event_type = "providers/cloud.pubsub/eventTypes/topic.publish"
-        resource = "projects/${var.service_project}/topics/${google_pubsub_topic.post_dataflow_processing_topic.name}"
+        resource = "projects/${var.data_project}/topics/${google_pubsub_topic.post_dataflow_processing_topic.name}"
     }
 
     entry_point           = "main"
