@@ -15,5 +15,5 @@ regions = [
   }
 ]
 
-# Dataflow Job notification
+# Dataflow Job notification email
 notification_email = "roly.vicaria@taxfyle.com"

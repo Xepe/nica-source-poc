@@ -1,6 +1,6 @@
 # Create notification channel
 resource "google_monitoring_notification_channel" "basic" {
-    project = "${var.service_project}"
+    project = var.data_project
     display_name = "Email Notification Channel"
     type = "email"
     labels = {
