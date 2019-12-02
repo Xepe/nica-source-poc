@@ -12,9 +12,9 @@ data "archive_file" "trigger-pipeline-template" {
 }
 
 # Provisioning trigger to bucket
-resource "google_storage_bucket_object" "trigger-function-zip" {
+resource "google_storage_bucket_object" "trigger-pipeline-template-zip" {
   name       = local.trigger_pipeline_template_gcs_filename
-  source     = data.archive_file.trigger-function.output_path
+  source     = data.archive_file.trigger-pipeline-template.output_path
   bucket     = google_storage_bucket.code-bucket.name
 }
 
@@ -35,8 +35,8 @@ data "archive_file" "post-dataflow-processing" {
 resource "google_storage_bucket_object" "post_dataflow_processing_zip" {
   name   = local.post_dataflow_processing_gcs_filename
   source = ".${replace(path.module, path.root, "")}/code/post_dataflow_processing.zip"
-  bucket = "${google_storage_bucket.code_bucket.name}"
-  depends_on = [google_storage_bucket.code_bucket]
+  bucket = "${google_storage_bucket.code-bucket.name}"
+  depends_on = [google_storage_bucket.code-bucket]
 }
 
 

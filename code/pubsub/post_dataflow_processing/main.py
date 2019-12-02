@@ -15,18 +15,17 @@ def delete_blobs(blobs):
 def delete_folder(bucket_name, prefix):
     client = storage.Client()
     blobs = client.list_blobs(bucket_name, prefix=prefix)
-    for blob in blobs:
-        blob.delete()
+    delete_blobs(blobs)
 
 
-def cleanup(message):
-    delete_folder('{}-code'.format(message['project']), 'binaries/')
+def cleanup_binaries(project_id):
+    delete_folder('{}-code'.format(project_id), 'binaries/')
 
 
-def get_blobs_in_staging(storage_client, project_id, etl_region=None):
+def get_blobs_in_staging(storage_client, project_id, etl_region, table):
     bucket_name = '{}-staging-{}'.format(project_id, etl_region)
     blobs = storage_client.list_blobs(bucket_name)
-    return [blob for blob in blobs]
+    return [blob for blob in blobs if table == blob.name[0: blob.name.find('.')]]
 
 # ------------------------------------bigquery functions--------------------------------------------------------------
 
@@ -105,7 +104,7 @@ def get_table_latest_version_data(bigquery_client, dataset_id, table_id):
     return rows[0] if len(rows) > 0 else None
 
 
-def save_table_version_x_row_data(bigquery_client, dataset_id, table_id, version, version_schema):
+def save_table_version_to_schema_management_table(bigquery_client, dataset_id, table_id, version, version_schema):
     dataset_ref = bigquery_client.dataset(dataset_id)
     dataset = bigquery_client.get_dataset(dataset_ref.dataset_id)
     table_ref = dataset.table('schema_management')
@@ -118,134 +117,137 @@ def save_table_version_x_row_data(bigquery_client, dataset_id, table_id, version
     assert errors == []
 
 
-def manage_table_schemas(bigquery_client, dataset_id, blobs):
-    table_names_set = set([blob.name[0: blob.name.find('.')] for blob in blobs])
-    table_names = list(table_names_set)
-
+def manage_table_schemas(bigquery_client, dataset_id, table_id, blob):
     dataset_ref = bigquery_client.dataset(dataset_id)
     dataset = bigquery_client.get_dataset(dataset_ref.dataset_id)
 
-    for table_id in table_names:
-        table = None
+    # get staging table
+    table_ref = dataset.table('{}_staging'.format(table_id))
+    staging_table = bigquery_client.get_table(table_ref)
 
-        # get staging table
-        table_ref = dataset.table('{}_staging'.format(table_id))
-        staging_table = bigquery_client.get_table(table_ref)
+    # get table information from manage_schema table
+    table_row_data = get_table_latest_version_data(bigquery_client, dataset_id, table_id)
 
-        # get table information from manage_schema table
-        table_row_data = get_table_latest_version_data(bigquery_client, dataset_id, table_id)
-
-        if table_row_data is not None:  # table already exists
-            table_name = '{}_v{}'.format(table_row_data.table_name, table_row_data.last_version)
-            table_version = table_row_data.last_version
-            version_schema = table_row_data.version_schema
-            table_ref = dataset.table(table_name)
-            table = bigquery_client.get_table(table_ref)
-            # compare schema to check if we need to create a new version
-            if version_schema != str(staging_table.schema):
-                logging.info("New schema detected for table: {}".format(table_id))
-                # create a new table version with accumulated schema
-                create_table(bigquery_client, dataset_id, '{}_v{}'.format(table_id, table_version+1), staging_table.schema, partitioned=True, partition_type='DAY')
-                # save data to manage_schema_table
-                save_table_version_x_row_data(bigquery_client, dataset_id, table_id, table_version+1, staging_table.schema)
-
-        else:  # table do not exist in database
-            # create table version 1 with staging schema
-            create_table(bigquery_client, dataset_id, '{}_v1'.format(table_id), staging_table.schema, partitioned=True, partition_type='DAY')
+    if table_row_data is not None:  # table already exists
+        table_version = table_row_data.last_version
+        version_schema = table_row_data.version_schema
+        # compare schema to check if we need to create a new version
+        if version_schema != str(staging_table.schema):
+            logging.info("New schema detected for table: {}".format(table_id))
+            # create a new table version with accumulated schema
+            create_table(bigquery_client, dataset_id, '{}_v{}'.format(table_id, table_version + 1), staging_table.schema, partitioned=True, partition_type='DAY')
             # save data to manage_schema_table
-            save_table_version_x_row_data(bigquery_client, dataset_id, table_id, 1, staging_table.schema)
+            save_table_version_to_schema_management_table(bigquery_client, dataset_id, table_id, table_version + 1, staging_table.schema)
+
+    else:  # table do not exist in database
+        # create table version 1 with staging schema
+        create_table(bigquery_client, dataset_id, '{}_v1'.format(table_id), staging_table.schema, partitioned=True, partition_type='DAY')
+        # save data to manage_schema_table
+        save_table_version_to_schema_management_table(bigquery_client, dataset_id, table_id, 1, staging_table.schema)
 
 
 # remove staging tables
-def remove_staging_tables_if_exists(bigquery_client, dataset_id):
-    staging_tables = [table for table in bigquery_client.list_tables(dataset_id) if table.table_id.find("_staging") >= 0]
-    for staging_table in staging_tables:
+def remove_staging_table(bigquery_client, project_id, dataset_id, table_id):
+    try:
+        staging_table = bigquery_client.get_table('{}.{}.{}_staging'.format(project_id, dataset_id, table_id))
         logging.info('Deleting staging table: `{}`'.format(staging_table.table_id))
         bigquery_client.delete_table(staging_table)
+    except Exception as e:
+        pass
 
 
 # save blobs to staging tables
-def save_first_table_blob_to_bigquery_staging(bigquery_client, project_id, dataset_id, blobs):
-    # remove staging tables if exists
-    remove_staging_tables_if_exists(bigquery_client, dataset_id)
+def save_blob_to_bigquery_staging_table(bigquery_client, project_id, dataset_id, table_id, blob, etl_region):
+    # remove staging table if exists
+    remove_staging_table(bigquery_client, project_id, dataset_id, table_id)
 
     dataset_ref = bigquery_client.dataset(dataset_id)
     dataset = bigquery_client.get_dataset(dataset_ref.dataset_id)
 
-    table_names_set = set([blob.name[0: blob.name.find('.')] for blob in blobs])
-    table_names = list(table_names_set)
-    extension = 'jsonl-00000-of-00001'
+    job_config = bigquery.LoadJobConfig()
+    job_config.source_format = bigquery.SourceFormat.NEWLINE_DELIMITED_JSON
+    job_config.autodetect = True
+    uri = "gs://{}-staging-{}/{}".format(project_id, etl_region, blob.name)
 
-    for table_name in table_names:
-        # load from json file
+    load_job = bigquery_client.load_table_from_uri(
+        uri,
+        dataset_ref.table("{}_staging".format(table_id)),
+        location=dataset.location,
+        job_config=job_config,
+    )  # API request
+    logging.info("Starting job: `{}` to load data into staging table: `{}` to get the schema".format(load_job.job_id, '{}_staging'.format(table_id)))
 
-        job_config = bigquery.LoadJobConfig()
-        job_config.source_format = bigquery.SourceFormat.NEWLINE_DELIMITED_JSON
-        job_config.autodetect = True
-        uri = "gs://{}-staging/{}.{}".format(project_id, table_name, extension)
+    load_job.result()
+    logging.info("Job finished.")
 
-        load_job = bigquery_client.load_table_from_uri(
-            uri,
-            dataset_ref.table("{}_staging".format(table_name)),
-            location=dataset.location,
-            job_config=job_config,
-        )  # API request
-        logging.info("Starting job: `{}` to load data into staging table: `{}` to get the schema".format(load_job.job_id, '{}_staging'.format(table_name)))
-
-        load_job.result()
-        logging.info("Job finished.")
-
-        destination_table = bigquery_client.get_table(dataset_ref.table('{}_staging'.format(table_name)))
-        logging.info("Loaded `{}` rows into staging table: `{}`.".format(destination_table.num_rows, '{}_staging'.format(table_name)))
+    destination_table = bigquery_client.get_table(dataset_ref.table('{}_staging'.format(table_id)))
+    logging.info("Loaded `{}` rows into staging table: `{}`.".format(destination_table.num_rows, '{}_staging'.format(table_id)))
 
 
-# save blobs to verisoned tables
-def save_blobs_to_bigquery_versioned_tables(bigquery_client, project_id, dataset_id, blobs):
+# save blobs to versioned tables
+def save_blob_to_bigquery_versioned_table(bigquery_client, project_id, dataset_id, table_id, blob, etl_region):
 
     dataset_ref = bigquery_client.dataset(dataset_id)
     dataset = bigquery_client.get_dataset(dataset_ref.dataset_id)
 
-    for blob in blobs:
-        # get table name from blob
-        table_id = blob.name[0: blob.name.find('.')]
+    # get corresponding table version information
+    table_row_data = get_table_latest_version_data(bigquery_client, dataset_id, table_id)
+    table_name = '{}_v{}'.format(table_row_data.table_name, table_row_data.last_version)
 
-        # get corresponding table version information
-        table_row_data = get_table_latest_version_data(bigquery_client, dataset_id, table_id)
-        table_name = '{}_v{}'.format(table_row_data.table_name, table_row_data.last_version)
+    job_config = bigquery.LoadJobConfig()
+    job_config.source_format = bigquery.SourceFormat.NEWLINE_DELIMITED_JSON
+    job_config.schema = get_table_schema(bigquery_client, dataset_id, table_name)
+    uri = "gs://{}-staging-{}/{}".format(project_id, etl_region, blob.name)
 
-        job_config = bigquery.LoadJobConfig()
-        job_config.source_format = bigquery.SourceFormat.NEWLINE_DELIMITED_JSON
-        job_config.schema = get_table_schema(bigquery_client, dataset_id, table_name)
-        # job_config.autodetect = True
-        uri = "gs://{}-staging/{}".format(project_id, blob.name)
+    load_job = bigquery_client.load_table_from_uri(
+        uri,
+        dataset_ref.table(table_name),
+        location=dataset.location,
+        job_config=job_config,
+    )  # API request
+    logging.info(
+        "Starting job: `{}` to load data into versioned table: `{}`.".format(load_job.job_id, table_name))
 
-        load_job = bigquery_client.load_table_from_uri(
-            uri,
-            dataset_ref.table(table_name),
-            location=dataset.location,
-            job_config=job_config,
-        )  # API request
-        logging.info(
-            "Starting job: `{}` to load data into versioned table: `{}`.".format(load_job.job_id, table_name))
+    load_job.result()
+    logging.info("Job finished.")
 
-        load_job.result()
-        logging.info("Job finished.")
-
-        destination_table = bigquery_client.get_table(dataset_ref.table(table_name))
-        logging.info("There are `{}` rows in versioned table: `{}`.".format(destination_table.num_rows, table_name))
+    destination_table = bigquery_client.get_table(dataset_ref.table(table_name))
+    logging.info("There are `{}` rows in versioned table: `{}`.".format(destination_table.num_rows, table_name))
 
 
+# ---------------------------- pubsub fucntions -------------------------------------------------------------
+
+def publish_to_pubsub(element, project, dest_dataset, table, etl_region):
+    import logging
+    from google.cloud import pubsub_v1
+    logging.getLogger().setLevel(logging.INFO)
+    post_processing_topic = 'post-dataflow-processing-topic'
+    logging.info("Sending message to projects/{}/topics/{}".format(project, post_processing_topic))
+    publisher = pubsub_v1.PublisherClient()
+    topic_path = publisher.topic_path(project, post_processing_topic)
+    message = {
+        'project': project,
+        'dest_dataset': dest_dataset,
+        'table': table,
+        'etl_region': etl_region,
+    }
+    data = json.dumps(message).encode('utf-8')
+    future = publisher.publish(topic_path, data=data)
+    logging.info("Pubsub message Id: {}. Sent message {}".format(future.result(), data))
+
+
+# --------------------------------------- main ---------------------------------------------------------------
 def main(event, context):
     """Triggered from a message on a Cloud Pub/Sub topic.
         Args:
              event (dict): Event payload.
              context (google.cloud.functions.Context): Metadata for the event.
-        This function receives:
+        This function receives in event['data']:
         {
-          'project' : 'project_name',
-          'region' : 'project_region',
-          'dest_dataset': dest_dataset,
-          'etl_region' : 'etl_region'
+          'project'         : 'project_name',
+          'dest_dataset'    : 'dest_dataset',
+          'table'           : 'table_name',
+          'etl_region'      : 'etl_region'
         }
     """
     logging.getLogger().setLevel(logging.INFO)
@@ -254,9 +256,9 @@ def main(event, context):
     message = json.loads(pubsub_message)
 
     project = message['project']
-    project_region = message['region']
     dataset = message['dest_dataset']
-    etl_region = message['dest_dataset']
+    table = message['table']
+    etl_region = message['etl_region'].lower()
 
     bigquery_client = bigquery.Client(project=project)
     storage_client = storage.Client(project=project)
@@ -265,29 +267,47 @@ def main(event, context):
     create_schema_management_table_if_not_exits(bigquery_client, dataset)
 
     # read all blobs from staging -> to an array
-    blobs = get_blobs_in_staging(storage_client, project, etl_region)
+    blobs = get_blobs_in_staging(storage_client, project, etl_region, table)
 
-    # save blobs to bigquery staging tables
-    save_first_table_blob_to_bigquery_staging(bigquery_client, project, dataset, blobs)
+    for blob in blobs:
+        try:
+            # save blob to bigquery staging table
+            save_blob_to_bigquery_staging_table(bigquery_client, project, dataset, table, blob, etl_region)
 
-    # analyze schemas
-    manage_table_schemas(bigquery_client, dataset, blobs)
+            # analyze schemas
+            manage_table_schemas(bigquery_client, dataset, table, blob)
 
-    # save blobs to big query using las table_version
-    save_blobs_to_bigquery_versioned_tables(bigquery_client, project, dataset, blobs)
+            # save blob to big query using last table_version
+            save_blob_to_bigquery_versioned_table(bigquery_client, project, dataset, table, blob, etl_region)
 
-    # delete all staging tables
-    remove_staging_tables_if_exists(bigquery_client, dataset)
+            # delete staging table related to the table
+            remove_staging_table(bigquery_client, project, dataset, table)
 
-    # delete all json files blobs from staging bucket
-    delete_blobs(blobs)
+            # delete blob from staging bucket
+            blob.delete()
 
+        except Exception as e:
+            logging.error("Error loading blob: {} to staging table: {}.{}_staging".format(blob.name, dataset, table))
+            logging.info("Sending pubsub message to handle error for blob: {}".format(blob.name))
+            # todo send pubsub message
+
+    # clean up binaries
+    cleanup_binaries(project)
 
 # to debug locally
 if __name__ == '__main__':
     logging.getLogger().setLevel(logging.INFO)
-    event = {
-        'data': 'eyJwcm9qZWN0IjogImMzOS10eGYtc2FuZGJveCIsICJyZWdpb24iOiAidXMtZWFzdDEiLCAiZGVzdF9kYXRhc2V0IjogIm1haW5fZHdoIiwgImV0bF9yZWdpb24iOiAiVVMifQ=='
+    # go to https://www.base64encode.org/
+    # encode json object according to project
+    # {"project": "c39-txf-sandbox", "dest_dataset": "main_dwh", "etl_region": "US"}
+    # event = {
+    #     'data': 'eyJwcm9qZWN0IjogImMzOS10eGYtc2FuZGJveCIsICJyZWdpb24iOiAidXMtZWFzdDEiLCAiZGVzdF9kYXRhc2V0IjogIm1haW5fZHdoIiwgImV0bF9yZWdpb24iOiAiVVMifQ=='
+    # }
+
+    #{"project": "taxfyle-qa-data", "dest_dataset": "data_warehouse_us", "table" : "job_event", "etl_region": "US"}
+    event ={
+        'data' : 'eyJwcm9qZWN0IjogInRheGZ5bGUtcWEtZGF0YSIsICJkZXN0X2RhdGFzZXQiOiAiZGF0YV93YXJlaG91c2VfdXMiLCAidGFibGUiIDogImpvYl9ldmVudCIsICJldGxfcmVnaW9uIjogIlVTIn0='
     }
+
     context = {}
     main(event, context)

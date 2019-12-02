@@ -5,3 +5,4 @@
 plan.out
 .tfstate.backup
 gcs_backend_creds
+infrastructure/terraform/code/

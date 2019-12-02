@@ -4,7 +4,7 @@ resource "google_storage_bucket" "datalake-bucket" {
   name          = "${var.data_project}-datalake-${lookup(var.regions[count.index], "name")}"
   project       = var.data_project
   location      = lookup(var.regions[count.index], "region")
-  force_destroy = true
+  force_destroy = false
 }
 
 # Bucket for code

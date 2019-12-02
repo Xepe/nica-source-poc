@@ -9,7 +9,7 @@ resource "google_cloudfunctions_function" "trigger-pipeline-template-function" {
 
   available_memory_mb   = 256
   source_archive_bucket = google_storage_bucket.code-bucket.name
-  source_archive_object = google_storage_bucket_object.trigger-function-zip.name
+  source_archive_object = google_storage_bucket_object.trigger-pipeline-template-zip.name
   trigger_http          = true
   entry_point           = "executeTemplateInDataflow"
 
@@ -18,24 +18,24 @@ resource "google_cloudfunctions_function" "trigger-pipeline-template-function" {
 
 
 # post_dataflow_processing_function
-resource "google_cloudfunctions_function" "post-dataflow-processing" {
+resource "google_cloudfunctions_function" "post-dataflow-processing-function" {
     count           = length(var.regions)
     project         = var.data_project
     region          = lookup(var.regions[count.index], "region")
-    name            = "post_dataflow_processing"
+    name            = "post-dataflow-processing-function-${lookup(var.regions[count.index], "name")}"
     description     = "Execute post processing actions after pipeline execution"
     runtime         = "python37"
 
     available_memory_mb   = 256
-    source_archive_bucket = "${google_storage_bucket.code_bucket.name}"
+    source_archive_bucket = "${google_storage_bucket.code-bucket.name}"
     source_archive_object = "${google_storage_bucket_object.post_dataflow_processing_zip.name}"
     event_trigger {
         event_type = "providers/cloud.pubsub/eventTypes/topic.publish"
-        resource = "projects/${var.data_project}/topics/${google_pubsub_topic.post_dataflow_processing_topic.name}"
+        resource = "projects/${var.data_project}/topics/${google_pubsub_topic.post-dataflow-processing-topic.name}"
     }
 
     entry_point           = "main"
     timeout               = 540
 
-    depends_on = [google_project_service.cloud-function-service, google_storage_bucket_object.post_dataflow_processing_zip]
+    depends_on = [google_project_service.cloud-function-service]
 }
