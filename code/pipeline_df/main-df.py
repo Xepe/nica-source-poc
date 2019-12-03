@@ -196,14 +196,13 @@ def add_extra_fields(element, etl_region):
     return element
 
 
-def publish_to_pubsub(element, project, dest_dataset, table, etl_region):
+def publish_to_pubsub(element, project, dest_dataset, table, etl_region, topic):
     import logging
     from google.cloud import pubsub_v1
     logging.getLogger().setLevel(logging.INFO)
-    post_processing_topic = 'post-dataflow-processing-topic'
-    logging.info("Sending message to projects/{}/topics/{}".format(project, post_processing_topic))
+    logging.info("Sending message to projects/{}/topics/{}".format(project, topic))
     publisher = pubsub_v1.PublisherClient()
-    topic_path = publisher.topic_path(project, post_processing_topic)
+    topic_path = publisher.topic_path(project, topic)
     message = {
         'project': project,
         'dest_dataset': dest_dataset,
@@ -246,6 +245,8 @@ def run(argv=None):
         gcp_bucket = 'gs://{}/raw'.format(bucket)
         staging_bucket = 'gs://{}-staging-{}'.format(project, etl_region)
 
+        post_processing_topic = 'post-dataflow-processing-topic'
+
         with beam.Pipeline(options=pipeline_options) as p:
             for d in db_schemas:
                 for e in list({"database": d['database'], "table": j} for j in d['tables']):
@@ -262,7 +263,6 @@ def run(argv=None):
                     records = p | "Reading records from db/table: {}[{}]".format(d['database'], e['table']['name']) >> relational_db.ReadFromDB(source_config=source_config, table_name=e['table']['name']) \
                                 | "Fixing dates for: {}[{}]".format(d['database'], e['table']['name']) >> beam.Map(fix_dates) \
                                 | "Fixing JSON objects for: {}[{}]".format(d['database'], e['table']['name']) >> beam.Map(fix_jsons) \
-                                | "Fixing JSON arrays for: {}[{}]".format(d['database'], e['table']['name']) >> beam.Map(fix_json_arrays_with_different_schema) \
                                 | "Fixing other schema issues for: {}[{}]".format(d['database'], e['table']['name']) >> beam.Map(fix_other_schema_issues) \
                                 | "Adding extra fields for: {}[{}] ".format(d['database'], e['table']['name']) >> beam.Map(add_extra_fields, etl_region) \
                                 | "Converting to valid BigQuery JSON for: {}[{}] ".format(d['database'], e['table']['name']) >> beam.Map(json.dumps)
@@ -270,7 +270,7 @@ def run(argv=None):
                     records | "Writing records to raw storage for: {}[{}]".format(d['database'], e['table']['name']) >> beam.io.WriteToText('{}/{}/{}/{}.jsonl'.format(gcp_bucket, e['database'], timestamp, e['table']['name']))
 
                     records | "Writing records to staging storage for: {}[{}]".format(d['database'], e['table']['name']) >> beam.io.WriteToText('{}/{}.jsonl'.format(staging_bucket, e['table']['name'])) \
-                            | "Sending message to PubSub for: {}[{}]".format(d['database'], e['table']['name']) >> beam.Map(publish_to_pubsub, project, dataset, e['table']['name'], etl_region)
+                            | "Sending message to PubSub for: {}[{}]".format(d['database'], e['table']['name']) >> beam.Map(publish_to_pubsub, project, dataset, e['table']['name'], etl_region, post_processing_topic)
 
     except Exception as e:
         logging.error('Error creating pipeline. Details:{}'.format(e))

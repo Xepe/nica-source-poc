@@ -3,7 +3,7 @@ resource "google_cloud_scheduler_job" "dataflow_trigger" {
   project   = var.data_project
   region    = lookup(var.regions[count.index], "region")
   name      = "dataflow-scheduler-job-${lookup(var.regions[count.index], "name")}"
-  schedule  = "0 */4 * * *"
+  schedule  = "0 */6 * * *"
   time_zone = "America/New_York"
 
   http_target {

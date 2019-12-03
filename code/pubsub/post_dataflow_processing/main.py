@@ -4,6 +4,11 @@ from google.cloud import storage
 from google.cloud import bigquery
 import logging
 import datetime
+from google.cloud.exceptions import GoogleCloudError
+
+
+class LoadJsonToBigQueryException(Exception):
+    pass
 
 
 # -------------------------------------storage functions--------------------------------------------------------------
@@ -12,22 +17,46 @@ def delete_blobs(blobs):
         blob.delete()
 
 
-def delete_folder(bucket_name, prefix):
-    client = storage.Client()
-    blobs = client.list_blobs(bucket_name, prefix=prefix)
+def delete_folder(storage_client, bucket_name, prefix):
+    blobs = storage_client.list_blobs(bucket_name, prefix=prefix)
     delete_blobs(blobs)
 
 
-def cleanup_binaries(project_id):
-    delete_folder('{}-code'.format(project_id), 'binaries/')
+def cleanup_binaries(storage_client, project_id):
+    delete_folder(storage_client, '{}-code'.format(project_id), 'binaries/')
 
 
 def get_blobs_in_staging(storage_client, project_id, etl_region, table):
     bucket_name = '{}-staging-{}'.format(project_id, etl_region)
-    blobs = storage_client.list_blobs(bucket_name)
-    return [blob for blob in blobs if table == blob.name[0: blob.name.find('.')]]
+    blobs = list(storage_client.list_blobs(bucket_name, prefix='{}.jsonl'.format(table)))
+    return sorted(blobs, key=lambda blob: blob.name)
 
 # ------------------------------------bigquery functions--------------------------------------------------------------
+
+
+def delete_current_partition(bigquery_client, dataset_id, table_id):
+    dataset_ref = bigquery_client.dataset(dataset_id)
+    dataset = bigquery_client.get_dataset(dataset_ref.dataset_id)
+
+    # get table information from manage_schema table
+    table_row_data = get_table_latest_version_data(bigquery_client, dataset_id, table_id)
+
+    if table_row_data is not None:  # table already exists
+        table_version = table_row_data.last_version
+        today = datetime.today().strftime("%Y-%m-%d")
+        query = ('Delete FROM `{}.{}.{}_v{}` '
+                 'WHERE DATE(_PARTITIONTIME) = "{}" '.format(dataset.project, dataset_id, table_id, table_version, today))
+
+        timeout = 30  # in seconds
+        param_table_name = bigquery.ScalarQueryParameter('param_table_name', 'STRING', table_id)
+        job_config = bigquery.QueryJobConfig()
+        job_config.query_parameters = [param_table_name]
+
+        query_job = bigquery_client.query(query, job_config=job_config)  # API request - starts the query
+
+        # Waits for the query to finish
+        query_job.result(timeout=timeout)
+
 
 
 # bigquery, check if table exists
@@ -177,11 +206,13 @@ def save_blob_to_bigquery_staging_table(bigquery_client, project_id, dataset_id,
     )  # API request
     logging.info("Starting job: `{}` to load data into staging table: `{}` to get the schema".format(load_job.job_id, '{}_staging'.format(table_id)))
 
-    load_job.result()
-    logging.info("Job finished.")
-
-    destination_table = bigquery_client.get_table(dataset_ref.table('{}_staging'.format(table_id)))
-    logging.info("Loaded `{}` rows into staging table: `{}`.".format(destination_table.num_rows, '{}_staging'.format(table_id)))
+    try:
+        load_job.result()
+        logging.info("Job finished.")
+        destination_table = bigquery_client.get_table(dataset_ref.table('{}_staging'.format(table_id)))
+        logging.info("Loaded `{}` rows into staging table: `{}`.".format(destination_table.num_rows, table_id))
+    except GoogleCloudError:
+        raise LoadJsonToBigQueryException('Exception loading json to bigquery')
 
 
 # save blobs to versioned tables
@@ -196,6 +227,7 @@ def save_blob_to_bigquery_versioned_table(bigquery_client, project_id, dataset_i
 
     job_config = bigquery.LoadJobConfig()
     job_config.source_format = bigquery.SourceFormat.NEWLINE_DELIMITED_JSON
+    job_config.write_disposition = 'WRITE_TRUNCATE'
     job_config.schema = get_table_schema(bigquery_client, dataset_id, table_name)
     uri = "gs://{}-staging-{}/{}".format(project_id, etl_region, blob.name)
 
@@ -215,16 +247,15 @@ def save_blob_to_bigquery_versioned_table(bigquery_client, project_id, dataset_i
     logging.info("There are `{}` rows in versioned table: `{}`.".format(destination_table.num_rows, table_name))
 
 
-# ---------------------------- pubsub fucntions -------------------------------------------------------------
+# ---------------------------- pubsub functions -------------------------------------------------------------
 
-def publish_to_pubsub(element, project, dest_dataset, table, etl_region):
+def publish_to_pubsub(project, dest_dataset, table, etl_region, topic):
     import logging
     from google.cloud import pubsub_v1
     logging.getLogger().setLevel(logging.INFO)
-    post_processing_topic = 'post-dataflow-processing-topic'
-    logging.info("Sending message to projects/{}/topics/{}".format(project, post_processing_topic))
+    logging.info("Sending message to projects/{}/topics/{}".format(project, topic))
     publisher = pubsub_v1.PublisherClient()
-    topic_path = publisher.topic_path(project, post_processing_topic)
+    topic_path = publisher.topic_path(project, topic)
     message = {
         'project': project,
         'dest_dataset': dest_dataset,
@@ -260,6 +291,8 @@ def main(event, context):
     table = message['table']
     etl_region = message['etl_region'].lower()
 
+    bq_error_importing_json_file_topic = 'bq-error-importing-json-file'
+
     bigquery_client = bigquery.Client(project=project)
     storage_client = storage.Client(project=project)
 
@@ -286,13 +319,13 @@ def main(event, context):
             # delete blob from staging bucket
             blob.delete()
 
-        except Exception as e:
+        except LoadJsonToBigQueryException:
             logging.error("Error loading blob: {} to staging table: {}.{}_staging".format(blob.name, dataset, table))
             logging.info("Sending pubsub message to handle error for blob: {}".format(blob.name))
-            # todo send pubsub message
+            # publish_to_pubsub(project, dataset, table, etl_region, bq_error_importing_json_file_topic)
 
     # clean up binaries
-    cleanup_binaries(project)
+    # cleanup_binaries(storage_client, project)
 
 # to debug locally
 if __name__ == '__main__':
@@ -304,9 +337,9 @@ if __name__ == '__main__':
     #     'data': 'eyJwcm9qZWN0IjogImMzOS10eGYtc2FuZGJveCIsICJyZWdpb24iOiAidXMtZWFzdDEiLCAiZGVzdF9kYXRhc2V0IjogIm1haW5fZHdoIiwgImV0bF9yZWdpb24iOiAiVVMifQ=='
     # }
 
-    #{"project": "taxfyle-qa-data", "dest_dataset": "data_warehouse_us", "table" : "job_event", "etl_region": "US"}
+    #{"project": "taxfyle-qa-data", "dest_dataset": "data_warehouse_us", "table" : "message", "etl_region": "US"}
     event ={
-        'data' : 'eyJwcm9qZWN0IjogInRheGZ5bGUtcWEtZGF0YSIsICJkZXN0X2RhdGFzZXQiOiAiZGF0YV93YXJlaG91c2VfdXMiLCAidGFibGUiIDogImpvYl9ldmVudCIsICJldGxfcmVnaW9uIjogIlVTIn0='
+        'data': 'eyJwcm9qZWN0IjogInRheGZ5bGUtcWEtZGF0YSIsICJkZXN0X2RhdGFzZXQiOiAiZGF0YV93YXJlaG91c2VfdXMiLCAidGFibGUiIDogIm1lc3NhZ2UiLCAiZXRsX3JlZ2lvbiI6ICJVUyJ9'
     }
 
     context = {}

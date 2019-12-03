@@ -1,3 +1,4 @@
 google-cloud-storage
-google-cloud-bigquery
 google-cloud-pubsub
+json-schema-matcher
+
