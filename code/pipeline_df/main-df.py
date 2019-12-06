@@ -17,6 +17,7 @@ class UserOptions(PipelineOptions):
         parser.add_value_provider_argument('--dest_dataset', type=str, dest='dest_dataset', default='no_dataset')
         parser.add_value_provider_argument('--dest_bucket', type=str, dest='dest_bucket', default='no_bucket')
         parser.add_value_provider_argument('--etl_region', type=str, dest='etl_region', default='no_region')
+        parser.add_value_provider_argument('--full_load', type=str, dest='full_load', default='True')
 
 
 def load_db_schema():
@@ -192,11 +193,11 @@ def add_extra_fields(element, etl_region):
     import datetime
     # add extra fields
     now = datetime.datetime.now().isoformat()
-    element.update({'etl_region': etl_region, 'etl_date_updated': str(now)})
+    element.update({'etl_region': etl_region.upper(), 'etl_date_updated': str(now)})
     return element
 
 
-def publish_to_pubsub(element, project, dest_dataset, table, etl_region, topic):
+def publish_to_pubsub(element, project, dest_dataset, table, etl_region, full_load, topic):
     import logging
     from google.cloud import pubsub_v1
     logging.getLogger().setLevel(logging.INFO)
@@ -208,6 +209,7 @@ def publish_to_pubsub(element, project, dest_dataset, table, etl_region, topic):
         'dest_dataset': dest_dataset,
         'table': table,
         'etl_region': etl_region,
+        'full_load': full_load
     }
     data = json.dumps(message).encode('utf-8')
     future = publisher.publish(topic_path, data=data)
@@ -237,7 +239,7 @@ def run(argv=None):
         project = str(google_cloud_options.project)
 
         user_options = pipeline_options.view_as(UserOptions)
-        etl_region = (str(user_options.etl_region)).lower()
+        etl_region = (str(user_options.etl_region))
         dataset = str(user_options.dest_dataset)
         bucket = str(user_options.dest_bucket)
 
@@ -260,7 +262,10 @@ def run(argv=None):
                     #     query='select num, name from months'  # optional. When omitted, all table records are returned.
                     # )
 
-                    records = p | "Reading records from db/table: {}[{}]".format(d['database'], e['table']['name']) >> relational_db.ReadFromDB(source_config=source_config, table_name=e['table']['name']) \
+                    records = p | "Reading records from db/table: {}[{}]".format(d['database'], e['table']['name']) >> relational_db.ReadFromDB(
+                                        source_config=source_config,
+                                        table_name=e['table']['name'],
+                                        query=None if str(user_options.full_load) == 'True' else 'select * from {}'.format(e['table']['name'])) \
                                 | "Fixing dates for: {}[{}]".format(d['database'], e['table']['name']) >> beam.Map(fix_dates) \
                                 | "Fixing JSON objects for: {}[{}]".format(d['database'], e['table']['name']) >> beam.Map(fix_jsons) \
                                 | "Fixing other schema issues for: {}[{}]".format(d['database'], e['table']['name']) >> beam.Map(fix_other_schema_issues) \
@@ -270,7 +275,7 @@ def run(argv=None):
                     records | "Writing records to raw storage for: {}[{}]".format(d['database'], e['table']['name']) >> beam.io.WriteToText('{}/{}/{}/{}.jsonl'.format(gcp_bucket, e['database'], timestamp, e['table']['name']))
 
                     records | "Writing records to staging storage for: {}[{}]".format(d['database'], e['table']['name']) >> beam.io.WriteToText('{}/{}.jsonl'.format(staging_bucket, e['table']['name'])) \
-                            | "Sending message to PubSub for: {}[{}]".format(d['database'], e['table']['name']) >> beam.Map(publish_to_pubsub, project, dataset, e['table']['name'], etl_region, post_processing_topic)
+                            | "Sending message to PubSub for: {}[{}]".format(d['database'], e['table']['name']) >> beam.Map(publish_to_pubsub, project, dataset, e['table']['name'], etl_region, str(user_options.full_load), post_processing_topic)
 
     except Exception as e:
         logging.error('Error creating pipeline. Details:{}'.format(e))

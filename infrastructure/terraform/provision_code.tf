@@ -41,24 +41,43 @@ resource "google_storage_bucket_object" "post-dataflow-processing-zip" {
 }
 
 
-# split_json_file_per_schema
+# notify_error_importing_json_file_to_bq
 locals {
-    split_json_file_per_schema_filename = "split_json_file_per_schema_function_${substr(lower(replace(base64encode(data.archive_file.split-json-file-per-schema.output_md5), "=", "")), 0, 15)}.zip"
+    notify_error_importing_json_file_to_bq_filename = "notify_error_importing_json_file_to_bq_function_${substr(lower(replace(base64encode(data.archive_file.notify-error-importing-json-file-to-bq.output_md5), "=", "")), 0, 15)}.zip"
 }
 
-# Zip Python split_json_file_per_schema folder
-data "archive_file" "split-json-file-per-schema" {
+# Zip Python notify_error_importing_json_file_to_bq folder
+data "archive_file" "notify-error-importing-json-file-to-bq" {
   type        = "zip"
-  source_dir = "./../../code/pubsub/split_json_file_per_schema"
-  output_path = ".${replace(path.module, path.root, "")}/code/split_json_file_per_schema.zip"  
+  source_dir = "./../../code/pubsub/notify_error_importing_json_file_to_bq"
+  output_path = ".${replace(path.module, path.root, "")}/code/notify_error_importing_json_file_to_bq.zip"  
 }
 
-# Provisioning split_json_file_per_schema to bucket
-resource "google_storage_bucket_object" "split-json-file-per-schema-zip" {
-  name   = local.split_json_file_per_schema_filename
-  source = ".${replace(path.module, path.root, "")}/code/split_json_file_per_schema.zip"
+# Provisioning notify_error_importing_json_file_to_bq to bucket
+resource "google_storage_bucket_object" "notify-error-importing-json-file-to-bq-zip" {
+  name   = local.notify_error_importing_json_file_to_bq_filename
+  source = ".${replace(path.module, path.root, "")}/code/notify_error_importing_json_file_to_bq.zip"
   bucket = "${google_storage_bucket.code-bucket.name}"
   depends_on = [google_storage_bucket.code-bucket]
 }
 
 
+# bq_refresh_table_view
+locals {
+    bq_refresh_table_view_filename = "bq_refresh_table_view_function_${substr(lower(replace(base64encode(data.archive_file.bq-refresh-table-view.output_md5), "=", "")), 0, 15)}.zip"
+}
+
+# Zip Python bq_refresh_table_view folder
+data "archive_file" "bq-refresh-table-view" {
+  type        = "zip"
+  source_dir = "./../../code/pubsub/bq_refresh_table_view"
+  output_path = ".${replace(path.module, path.root, "")}/code/bq_refresh_table_view.zip"  
+}
+
+# Provisioning bq_refresh_table_view to bucket
+resource "google_storage_bucket_object" "bq-refresh-table-view-zip" {
+  name   = local.bq_refresh_table_view_filename
+  source = ".${replace(path.module, path.root, "")}/code/bq_refresh_table_view.zip"
+  bucket = "${google_storage_bucket.code-bucket.name}"
+  depends_on = [google_storage_bucket.code-bucket]
+}

@@ -31,7 +31,6 @@ variable "regions" {
   type = list(object({
     name                      = string
     region                    = string
-    bigquery_dataset_location = string
   }))
 }
 
