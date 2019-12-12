@@ -69,7 +69,8 @@ def main(event, context):
 if __name__ == '__main__':
     logging.getLogger().setLevel(logging.INFO)
     # go to https://www.base64encode.org/
-    # encode json object according to project
+    # encode json object. See example
+
     #{"project": "taxfyle-qa-data", "dest_dataset": "data_warehouse_us", "table" : "job_event", "etl_region": "US"}
     event ={
         'data': 'eyJwcm9qZWN0IjogInRheGZ5bGUtcWEtZGF0YSIsICJkZXN0X2RhdGFzZXQiOiAiZGF0YV93YXJlaG91c2VfdXMiLCAidGFibGUiIDogImpvYl9ldmVudCIsICJldGxfcmVnaW9uIjogIlVTIn0='

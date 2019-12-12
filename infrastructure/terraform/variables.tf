@@ -31,6 +31,7 @@ variable "regions" {
   type = list(object({
     name                      = string
     region                    = string
+    etl_region                = string
   }))
 }
 

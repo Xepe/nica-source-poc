@@ -2,30 +2,34 @@ import base64
 import json
 from google.cloud import storage
 from google.cloud import bigquery
-from google.cloud.bigquery import TimePartitioning
+from google.cloud.bigquery import TimePartitioning, TimePartitioningType, WriteDisposition
 import logging
-import datetime
+from datetime import datetime
 from google.cloud.exceptions import GoogleCloudError
 from bigquery_schema_generator.generate_schema import SchemaGenerator
 
 
+class BadBlobSchemaException(Exception):
+    pass
+
+
 bq_error_importing_json_file_topic = 'bq-error-importing-json-file'
-bq_refresh_table_view_topic = 'bq-refresh-table-view'
+bq_refresh_table_topic = 'bq-refresh-table'
 
 
 # -------------------------------------storage functions--------------------------------------------------------------
-def delete_blobs(blobs):
-    for blob in blobs:
-        blob.delete()
+# def delete_blobs(blobs):
+#     for blob in blobs:
+#         blob.delete()
 
 
-def delete_folder(storage_client, bucket_name, prefix):
-    blobs = storage_client.list_blobs(bucket_name, prefix=prefix)
-    delete_blobs(blobs)
+# def delete_folder(storage_client, bucket_name, prefix):
+#     blobs = storage_client.list_blobs(bucket_name, prefix=prefix)
+#     delete_blobs(blobs)
 
 
-def cleanup_binaries(storage_client, project_id):
-    delete_folder(storage_client, '{}-code'.format(project_id), 'binaries/')
+# def cleanup_binaries(storage_client, project_id, etl_region):
+#     delete_folder(storage_client, '{}-code'.format(project_id), 'binaries/')
 
 
 def get_blobs_in_staging(storage_client, project_id, etl_region, table):
@@ -48,12 +52,14 @@ def exists_table(bigquery_client, dataset_id, table_id):
 
 
 # bigquery, create a table
-def create_table(bigquery_client, dataset_id, table_id, schema, partitioned=False, partition_type='DAY'):
+def create_table(bigquery_client, dataset_id, table_id, schema, partitioned=False, partition_type=TimePartitioningType.DAY, partition_field=None):
     dataset = bigquery_client.get_dataset(dataset_id)
     table_ref = dataset.table(table_id)
     table = bigquery.Table(table_ref, schema=schema)
     if partitioned:
         table.partitioning_type = partition_type
+        table.time_partitioning = TimePartitioning(field=partition_field, type_=partition_type)
+
     table = bigquery_client.create_table(table)
     logging.info("Creating table: {}".format(table_id))
     assert table.table_id == table_id
@@ -118,7 +124,7 @@ def save_table_version_to_schema_management_table(bigquery_client, dataset_id, t
     table = bigquery_client.get_table(table_ref)
 
     rows_to_insert = [
-        (table_id, version, datetime.datetime.now(), str(version_schema))
+        (table_id, version, datetime.now(), str(version_schema))
     ]
     errors = bigquery_client.insert_rows(table, rows_to_insert)  # API request
     logging.info("Schema_management table updated for table: {}, version: {}".format(table_id, version))
@@ -126,22 +132,13 @@ def save_table_version_to_schema_management_table(bigquery_client, dataset_id, t
 
 
 # manage table schemas (return schema, last version)
-def manage_table_schemas(bigquery_client, dataset_id, table_id, full_load):
+def manage_table_schemas(bigquery_client, dataset_id, table_id):
     table_version = 0
     dataset_ref = bigquery_client.dataset(dataset_id)
     dataset = bigquery_client.get_dataset(dataset_ref.dataset_id)
 
     # get table information from manage_schema table
     table_row_data = get_table_latest_version_data(bigquery_client, dataset_id, table_id)
-
-    # when no full_load
-    if not full_load:
-        if table_row_data is not None:
-            versioned_table_ref = dataset.table('{}_v{}'.format(table_id, table_row_data.last_version))
-            versioned_table = bigquery_client.get_table(versioned_table_ref)
-            return versioned_table.schema, table_row_data.last_version
-        else:
-            return None, None
 
     # get staging table
     staging_table_ref = dataset.table('{}_staging'.format(table_id))
@@ -157,13 +154,14 @@ def manage_table_schemas(bigquery_client, dataset_id, table_id, full_load):
             logging.info("New schema detected for table: {}".format(table_id))
             table_version = table_version + 1
             # create a new table version with accumulated schema
-            create_table(bigquery_client, dataset_id, '{}_v{}'.format(table_id, table_version), staging_table.schema, partitioned=True, partition_type='DAY')
+            create_table(bigquery_client, dataset_id, '{}_v{}'.format(table_id, table_version), staging_table.schema)
             # save data to manage_schema_table
             save_table_version_to_schema_management_table(bigquery_client, dataset_id, table_id, table_version, staging_table.schema)
 
     else:  # table do not exist in database
         # create table version 1 with staging schema
-        create_table(bigquery_client, dataset_id, '{}_v1'.format(table_id), staging_table.schema, partitioned=True, partition_type='DAY')
+        table_version = 1
+        create_table(bigquery_client, dataset_id, '{}_v1'.format(table_id), staging_table.schema)
         # save data to manage_schema_table
         save_table_version_to_schema_management_table(bigquery_client, dataset_id, table_id, 1, staging_table.schema)
 
@@ -177,7 +175,7 @@ def remove_staging_table(bigquery_client, project_id, dataset_id, table_id):
         logging.info('Deleting staging table: `{}`'.format(staging_table.table_id))
         bigquery_client.delete_table(staging_table)
     except Exception as e:
-        pass
+        pass  # staging table doesn't exist
 
 
 # deduce the schema using the entire json file (return the BigQuery Schema)
@@ -192,45 +190,6 @@ def deduce_schema(blob):
         result.append(i)
     return result
 
-
-# check if blod has a valid schema
-# def has_valid_schema(blob):
-#     from genson import SchemaBuilder
-#     valid_schema = True
-#
-#     builder = SchemaBuilder()
-#     json_list = blob.download_as_string().splitlines()
-#
-#     for obj in json_list:
-#         builder.add_object(json.loads(obj))
-#
-#     json_schema = json.loads(builder.to_json())
-#     properties = json_schema['properties']
-#
-#     def analyze_json_object(obj):
-#         valid_schema = True
-#         for field_key, field_value in obj['properties'].items():
-#             if not valid_schema:
-#                 break
-#             if 'type' in field_value and field_value['type'] == 'object':
-#                 valid_schema = analyze_json_object(field_value)
-#             else:
-#                 if 'anyOf' in field_value and len([t for t in field_value['anyOf'] if t['type'] != 'null']) > 1:
-#                     logging.error("Field: `{}` has multiple types: `{}`".format(field_key, [t['type'] for t in field_value['anyOf'] if t['type'] != 'null']))
-#                     return False
-#         return valid_schema
-#
-#     for field_key, field_value in properties.items():
-#         if not valid_schema:
-#             break
-#         if isinstance(field_value, dict):
-#             if field_value['type'] == 'object':
-#                 valid_schema = analyze_json_object(field_value)
-#             else:
-#                 if 'anyOf' in field_value and len([t for t in field_value['anyOf'] if t['type'] != 'null']) > 1:
-#                     logging.error("Field: `{}` has multiple types: `{}`".format(field_key, [t['type'] for t in field_value['anyOf'] if t['type'] != 'null']))
-#                     return False
-#     return valid_schema
 
 # Check for schema structure (return errors as array)
 def has_valid_schema(blob):
@@ -282,7 +241,6 @@ def save_blob_to_bigquery_staging_table(bigquery_client, project_id, dataset_id,
         job_config.autodetect = True
     else:
         job_config.schema = schema
-    job_config.schema_update_options = ['ALLOW_FIELD_ADDITION']
     uri = "gs://{}-staging-{}/{}".format(project_id, etl_region, blob.name)
 
     load_job = bigquery_client.load_table_from_uri(
@@ -299,7 +257,7 @@ def save_blob_to_bigquery_staging_table(bigquery_client, project_id, dataset_id,
         destination_table = bigquery_client.get_table(dataset_ref.table('{}_staging'.format(table_id)))
         logging.info("Loaded `{}` rows into staging table: `{}`.".format(destination_table.num_rows, table_id))
     except GoogleCloudError as e:
-        logging.warning("Autodetection schema failed for blob: `{}`".format(blob.name))
+        logging.warning("Autodetection schema failed for blob: `{}`. Details: {}".format(blob.name, e))
         errors = has_valid_schema(blob)
         if len(errors) == 0:
             logging.info("Blob `{}` has a valid schema. Schema will be computed using the entire file".format(blob.name))
@@ -307,13 +265,7 @@ def save_blob_to_bigquery_staging_table(bigquery_client, project_id, dataset_id,
             logging.info("Schema already computed for blob `{}`".format(blob.name))
             save_blob_to_bigquery_staging_table(bigquery_client, project_id, dataset_id, table_id, blob, etl_region, schema=schema)
         else:
-            logging.error("Error loading blob: `{}` to staging table: `{}.{}_staging`".format(blob.name, dataset, table_id))
-            for error in errors:
-                logging.error(error)
-
-            logging.info("Sending pubsub message to move blob: `{}` to errors folder".format(blob.name))
-            # send pubsub message to notify error
-            publish_to_pubsub(project_id, dataset_id, table_id, etl_region, bq_error_importing_json_file_topic, errors)
+            raise BadBlobSchemaException(errors)
 
 
 # save blobs to versioned tables
@@ -326,8 +278,8 @@ def save_blob_to_bigquery_versioned_table(bigquery_client, project_id, dataset_i
 
     job_config = bigquery.LoadJobConfig()
     job_config.source_format = bigquery.SourceFormat.NEWLINE_DELIMITED_JSON
-    job_config.time_partitioning = TimePartitioning()  # Default values: Partition by DAY and field _PARTITIONTIME
-    job_config.write_disposition = 'WRITE_APPEND'
+    # job_config.time_partitioning = TimePartitioning(field='etl_date_updated')  # Default values: Partition by DAY and field _PARTITIONTIME
+    job_config.write_disposition = WriteDisposition.WRITE_TRUNCATE
     job_config.schema = schema
     uri = "gs://{}-staging-{}/{}".format(project_id, etl_region, blob.name)
 
@@ -339,11 +291,14 @@ def save_blob_to_bigquery_versioned_table(bigquery_client, project_id, dataset_i
     )  # API request
     logging.info("Starting job: `{}` to load data into table: `{}`.".format(load_job.job_id, table_name))
 
-    load_job.result()
-    logging.info("Job `{}` finished. Data loaded to version table: `{}`.".format(load_job.job_id, table_name))
+    try:
+        load_job.result()
+        logging.info("Job `{}` finished. Data loaded to version table: `{}`.".format(load_job.job_id, table_name))
 
-    destination_table = bigquery_client.get_table(dataset_ref.table(table_name))
-    logging.info("There are `{}` rows in versioned table: `{}`.".format(destination_table.num_rows, table_name))
+        destination_table = bigquery_client.get_table(dataset_ref.table(table_name))
+        logging.info("There are `{}` rows in versioned table: `{}`.".format(destination_table.num_rows, table_name))
+    except GoogleCloudError as e:
+        logging.error("Error loading blob: `{}` to table: `{}.{}`. Details: {}".format(blob.name, dataset, table_name, e))
 
 
 # ---------------------------- pubsub functions -------------------------------------------------------------
@@ -351,7 +306,7 @@ def publish_to_pubsub(project, dest_dataset, table, etl_region, topic, details=N
     import logging
     from google.cloud import pubsub_v1
     logging.getLogger().setLevel(logging.INFO)
-    logging.info("Sending message to projects/{}/topics/{}".format(project, topic))
+    logging.info("Sending message to PubSub: `projects/{}/topics/{}`".format(project, topic))
     publisher = pubsub_v1.PublisherClient()
     topic_path = publisher.topic_path(project, topic)
 
@@ -363,7 +318,7 @@ def publish_to_pubsub(project, dest_dataset, table, etl_region, topic, details=N
     }
 
     if details is not None:
-        message['details'] = details.join()
+        message['details'] = ",".join(details)
 
     data = json.dumps(message).encode('utf-8')
     future = publisher.publish(topic_path, data=data)
@@ -393,7 +348,6 @@ def main(event, context):
     dataset = message['dest_dataset']
     table = message['table']
     etl_region = message['etl_region']
-    full_load = message['full_load'] == 'True'
 
     bigquery_client = bigquery.Client(project=project)
     storage_client = storage.Client(project=project)
@@ -406,58 +360,40 @@ def main(event, context):
 
     for blob in blobs:
         try:
-            # delete staging table related to the table
-            remove_staging_table(bigquery_client, project, dataset, table)
-
-            if full_load:
-                # save blob to bigquery staging table
-                save_blob_to_bigquery_staging_table(bigquery_client, project, dataset, table, blob, etl_region)
+            # save blob to bigquery staging table
+            save_blob_to_bigquery_staging_table(bigquery_client, project, dataset, table, blob, etl_region)
 
             # analyze schemas
-            schema, version = manage_table_schemas(bigquery_client, dataset, table, full_load)
+            schema, version = manage_table_schemas(bigquery_client, dataset, table)
 
-            if schema:
-                # save blob to big query using last table_version
-                save_blob_to_bigquery_versioned_table(bigquery_client, project, dataset, table, blob, etl_region, schema, version)
+            # save blob to big query using last table_version
+            save_blob_to_bigquery_versioned_table(bigquery_client, project, dataset, table, blob, etl_region, schema, version)
 
-                # delete staging table related to the table
-                remove_staging_table(bigquery_client, project, dataset, table)
+            # send pubsub message to refresh table views
+            publish_to_pubsub(project, dataset, table, etl_region, bq_refresh_table_topic)
 
-                # delete blob from staging bucket
-                blob.delete()
+        except BadBlobSchemaException as e:
+            logging.error("Error loading blob: `{}` to staging table: `{}.{}_staging`".format(blob.name, dataset, table))
+            for error in e.args[0]:
+                logging.error(error)
 
-                # send pubsub message to refresh table views
-                publish_to_pubsub(project, dataset, table, etl_region, bq_refresh_table_view_topic)
-
-            else:
-                logging.error("Table: `{}` doesn't exist. Can't load deltas".format(table))
+            logging.info("Sending pubsub message to move blob: `{}` to errors folder".format(blob.name))
+            # send pubsub message to notify error
+            # publish_to_pubsub(project, dataset, table, etl_region, bq_error_importing_json_file_topic, e.args[0])
 
         except Exception as e:
-            logging.error("Details: {}".format(e))
-
-    # clean up binaries
-    # cleanup_binaries(storage_client, project)
+            logging.error("Unknown error. Details: {}".format(e))
 
 
 # to debug locally
 if __name__ == '__main__':
     logging.getLogger().setLevel(logging.INFO)
     # go to https://www.base64encode.org/
-    # encode json object according to project
+    # encode json object. See example
 
-    # {"project": "c39-txf-sandbox", "dest_dataset": "main_dwh", "etl_region": "US"}
-    # event = {
-    #     'data': 'eyJwcm9qZWN0IjogImMzOS10eGYtc2FuZGJveCIsICJyZWdpb24iOiAidXMtZWFzdDEiLCAiZGVzdF9kYXRhc2V0IjogIm1haW5fZHdoIiwgImV0bF9yZWdpb24iOiAiVVMifQ=='
-    # }
-
-    # {"project": "taxfyle-qa-data", "dest_dataset": "data_warehouse_us", "table" : "job", "etl_region": "US"}
-    # event ={
-    #     'data': 'eyJwcm9qZWN0IjogInRheGZ5bGUtcWEtZGF0YSIsICJkZXN0X2RhdGFzZXQiOiAiZGF0YV93YXJlaG91c2VfdXMiLCAidGFibGUiIDogImpvYiIsICJldGxfcmVnaW9uIjogIlVTIn0='
-    # }
-
-    {"project": "taxfyle-qa-data", "dest_dataset": "data_warehouse_us", "table" : "job_event", "etl_region": "US"}
-    event ={
-        'data': 'eyJwcm9qZWN0IjogInRheGZ5bGUtcWEtZGF0YSIsICJkZXN0X2RhdGFzZXQiOiAiZGF0YV93YXJlaG91c2VfdXMiLCAidGFibGUiIDogImpvYl9ldmVudCIsICJldGxfcmVnaW9uIjogIlVTIn0='
+    # {"project": "taxfyle-qa-data", "dest_dataset": "data_warehouse_us", "table" : "coupon", "etl_region": "us"}
+    event = {
+        'data': 'eyJwcm9qZWN0IjogInRheGZ5bGUtcWEtZGF0YSIsICJkZXN0X2RhdGFzZXQiOiAiZGF0YV93YXJlaG91c2VfdXMiLCAidGFibGUiIDogImNvdXBvbiIsICJldGxfcmVnaW9uIjogInVzIn0='
     }
 
     context = {}

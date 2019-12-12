@@ -22,62 +22,82 @@ resource "google_storage_bucket_object" "trigger-pipeline-template-zip" {
 
 # post_dataflow_processing
 locals {
-    post_dataflow_processing_gcs_filename = "post_dataflow_processing_function_${substr(lower(replace(base64encode(data.archive_file.post-dataflow-processing.output_md5), "=", "")), 0, 15)}.zip"
+    bq_post_dataflow_processing_gcs_filename = "bq_post_dataflow_processing_function_${substr(lower(replace(base64encode(data.archive_file.bq-post-dataflow-processing.output_md5), "=", "")), 0, 15)}.zip"
 }
 
-# Zip Python post_dataflow_processing folder
-data "archive_file" "post-dataflow-processing" {
+# Zip Python bq_post_dataflow_processing folder
+data "archive_file" "bq-post-dataflow-processing" {
   type        = "zip"
-  source_dir = "./../../code/pubsub/post_dataflow_processing"
-  output_path = ".${replace(path.module, path.root, "")}/code/post_dataflow_processing.zip"  
+  source_dir = "./../../code/pubsub/bq_post_dataflow_processing"
+  output_path = ".${replace(path.module, path.root, "")}/code/bq_post_dataflow_processing.zip"  
 }
 
-# Provisioning post_dataflow_processing to bucket
-resource "google_storage_bucket_object" "post-dataflow-processing-zip" {
-  name   = local.post_dataflow_processing_gcs_filename
-  source = ".${replace(path.module, path.root, "")}/code/post_dataflow_processing.zip"
+# Provisioning bq_post_dataflow_processing to bucket
+resource "google_storage_bucket_object" "bq-post-dataflow-processing-zip" {
+  name   = local.bq_post_dataflow_processing_gcs_filename
+  source = ".${replace(path.module, path.root, "")}/code/bq_post_dataflow_processing.zip"
   bucket = "${google_storage_bucket.code-bucket.name}"
   depends_on = [google_storage_bucket.code-bucket]
 }
 
 
-# notify_error_importing_json_file_to_bq
+# notify_error_importing_json_file
 locals {
-    notify_error_importing_json_file_to_bq_filename = "notify_error_importing_json_file_to_bq_function_${substr(lower(replace(base64encode(data.archive_file.notify-error-importing-json-file-to-bq.output_md5), "=", "")), 0, 15)}.zip"
+    bq_notify_error_importing_json_file_filename = "bq_notify_error_importing_json_file_function_${substr(lower(replace(base64encode(data.archive_file.bq-notify-error-importing-json-file.output_md5), "=", "")), 0, 15)}.zip"
 }
 
-# Zip Python notify_error_importing_json_file_to_bq folder
-data "archive_file" "notify-error-importing-json-file-to-bq" {
+# Zip Python bq_notify_error_importing_json_file folder
+data "archive_file" "bq-notify-error-importing-json-file" {
   type        = "zip"
-  source_dir = "./../../code/pubsub/notify_error_importing_json_file_to_bq"
-  output_path = ".${replace(path.module, path.root, "")}/code/notify_error_importing_json_file_to_bq.zip"  
+  source_dir = "./../../code/pubsub/bq_notify_error_importing_json_file"
+  output_path = ".${replace(path.module, path.root, "")}/code/bq_notify_error_importing_json_file.zip"  
 }
 
-# Provisioning notify_error_importing_json_file_to_bq to bucket
-resource "google_storage_bucket_object" "notify-error-importing-json-file-to-bq-zip" {
-  name   = local.notify_error_importing_json_file_to_bq_filename
-  source = ".${replace(path.module, path.root, "")}/code/notify_error_importing_json_file_to_bq.zip"
+# Provisioning notify_error_importing_json_file to bucket
+resource "google_storage_bucket_object" "bq-notify-error-importing-json-file-zip" {
+  name   = local.bq_notify_error_importing_json_file_filename
+  source = ".${replace(path.module, path.root, "")}/code/bq_notify_error_importing_json_file.zip"
   bucket = "${google_storage_bucket.code-bucket.name}"
   depends_on = [google_storage_bucket.code-bucket]
 }
 
 
-# bq_refresh_table_view
+# bq_refresh_table
 locals {
-    bq_refresh_table_view_filename = "bq_refresh_table_view_function_${substr(lower(replace(base64encode(data.archive_file.bq-refresh-table-view.output_md5), "=", "")), 0, 15)}.zip"
+    bq_refresh_table_filename = "bq_refresh_table_function_${substr(lower(replace(base64encode(data.archive_file.bq-refresh-table.output_md5), "=", "")), 0, 15)}.zip"
 }
 
-# Zip Python bq_refresh_table_view folder
-data "archive_file" "bq-refresh-table-view" {
+# Zip Python bq_refresh_table folder
+data "archive_file" "bq-refresh-table" {
   type        = "zip"
-  source_dir = "./../../code/pubsub/bq_refresh_table_view"
-  output_path = ".${replace(path.module, path.root, "")}/code/bq_refresh_table_view.zip"  
+  source_dir = "./../../code/pubsub/bq_refresh_table"
+  output_path = ".${replace(path.module, path.root, "")}/code/bq_refresh_table.zip"  
 }
 
-# Provisioning bq_refresh_table_view to bucket
-resource "google_storage_bucket_object" "bq-refresh-table-view-zip" {
-  name   = local.bq_refresh_table_view_filename
-  source = ".${replace(path.module, path.root, "")}/code/bq_refresh_table_view.zip"
+# Provisioning bq_refresh_table to bucket
+resource "google_storage_bucket_object" "bq-refresh-table-zip" {
+  name   = local.bq_refresh_table_filename
+  source = ".${replace(path.module, path.root, "")}/code/bq_refresh_table.zip"
+  bucket = "${google_storage_bucket.code-bucket.name}"
+  depends_on = [google_storage_bucket.code-bucket]
+}
+
+# df_cleanup
+locals {
+    df_cleanup_filename = "df_cleanup_function_${substr(lower(replace(base64encode(data.archive_file.df-cleanup.output_md5), "=", "")), 0, 15)}.zip"
+}
+
+# Zip Python df_cleanup folder
+data "archive_file" "df-cleanup" {
+  type        = "zip"
+  source_dir = "./../../code/pubsub/df_cleanup"
+  output_path = ".${replace(path.module, path.root, "")}/code/df_cleanup.zip"  
+}
+
+# Provisioning bq_refresh_table to bucket
+resource "google_storage_bucket_object" "df-cleanup-zip" {
+  name   = local.bq_refresh_table_filename
+  source = ".${replace(path.module, path.root, "")}/code/df_cleanup.zip"
   bucket = "${google_storage_bucket.code-bucket.name}"
   depends_on = [google_storage_bucket.code-bucket]
 }
