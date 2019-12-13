@@ -211,14 +211,15 @@ def save_blob_to_bigquery_staging_table(bigquery_client, project_id, dataset_id,
                 save_blob_to_bigquery_staging_table(bigquery_client, project_id, dataset_id, table_id, blob, etl_region)
             else:
                 BadBlobSchemaException(e.errors)
-        logging.warning("Autodetection schema failed for table: `{}`. Details: {}".format(table_id, e))
-        logging.info("Schema will be computed using the entire file: `{}`".format(blob.name))
-        schema, errors = deduce_schema(blob)
-        if len(errors) == 0:
-            logging.info("Schema already computed for table `{}`".format(table_id))
-            save_blob_to_bigquery_staging_table(bigquery_client, project_id, dataset_id, table_id, blob, etl_region, schema=schema, computed_schema=True)
         else:
-            raise BadBlobSchemaException(errors)
+            logging.warning("Autodetection schema failed for table: `{}`. Details: {}".format(table_id, e))
+            logging.info("Schema will be computed using the entire file: `{}`".format(blob.name))
+            schema, errors = deduce_schema(blob)
+            if len(errors) == 0:
+                logging.info("Schema already computed for table `{}`".format(table_id))
+                save_blob_to_bigquery_staging_table(bigquery_client, project_id, dataset_id, table_id, blob, etl_region, schema=schema, computed_schema=True)
+            else:
+                raise BadBlobSchemaException(errors)
 
 
 # save blob to current table
@@ -267,7 +268,8 @@ def publish_to_pubsub(project, dest_dataset, table, etl_region, topic, details=N
     }
 
     if details is not None:
-        message['details'] = ",".join(details)
+        errors = [str(e) for e in details]
+        message['details'] = ",".join(errors)
 
     data = json.dumps(message).encode('utf-8')
     future = publisher.publish(topic_path, data=data)
@@ -310,8 +312,7 @@ def main(event, context):
     for blob in blobs:
         try:
             current_schema = None
-            exists = exists_table(bigquery_client, dataset, table)
-            if exists:
+            if exists_table(bigquery_client, dataset, table):
                 current_schema = get_table_schema(bigquery_client, dataset, table)
 
             # save blob to bigquery staging table
@@ -333,7 +334,7 @@ def main(event, context):
 
             logging.info("Sending pubsub message to move blob: `{}` to errors folder".format(blob.name))
             # send pubsub message to notify error
-            # publish_to_pubsub(project, dataset, table, etl_region, bq_error_importing_json_file_topic, e.args[0])
+            publish_to_pubsub(project, dataset, table, etl_region, bq_error_importing_json_file_topic, e.args[0])
 
         except Exception as e:
             logging.error("Unknown error. Details: {}".format(e))
@@ -350,9 +351,9 @@ if __name__ == '__main__':
     #     'data': 'eyJwcm9qZWN0IjogInRheGZ5bGUtcWEtZGF0YSIsICJkZXN0X2RhdGFzZXQiOiAiZGF0YV93YXJlaG91c2VfdXMiLCAidGFibGUiIDogImpvYl9ldmVudCIsICJldGxfcmVnaW9uIjogInVzIn0='
     # }
 
-    # {"project": "taxfyle-qa-data", "dest_dataset": "data_warehouse_us", "table" : "job", "etl_region": "us"}
+    # {"project": "taxfyle-qa-data", "dest_dataset": "data_warehouse_us", "table" : "notifications", "etl_region": "us"}
     event = {
-        'data': 'eyJwcm9qZWN0IjogInRheGZ5bGUtcWEtZGF0YSIsICJkZXN0X2RhdGFzZXQiOiAiZGF0YV93YXJlaG91c2VfdXMiLCAidGFibGUiIDogImpvYiIsICJldGxfcmVnaW9uIjogInVzIn0='
+        'data': 'eyJwcm9qZWN0IjogInRheGZ5bGUtcWEtZGF0YSIsICJkZXN0X2RhdGFzZXQiOiAiZGF0YV93YXJlaG91c2VfdXMiLCAidGFibGUiIDogIm5vdGlmaWNhdGlvbnMiLCAiZXRsX3JlZ2lvbiI6ICJ1cyJ9'
     }
 
     context = {}

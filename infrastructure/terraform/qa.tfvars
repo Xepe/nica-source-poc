@@ -16,5 +16,4 @@ regions = [
 ]
 
 # Dataflow Job notification email
-#notification_email = "roly.vicaria@taxfyle.com"
-notification_email = "ariel.gonzalez@cloud39.co"
+notification_email = "roly.vicaria@taxfyle.com"
