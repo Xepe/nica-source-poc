@@ -10,8 +10,8 @@ resource "google_cloudfunctions_function" "bq-post-dataflow-processing-function"
   runtime     = "python37"
 
   available_memory_mb   = 512
-  source_archive_bucket = "${google_storage_bucket.code-bucket.name}"
-  source_archive_object = "${google_storage_bucket_object.bq-post-dataflow-processing-zip.name}"
+  source_archive_bucket = google_storage_bucket.code-bucket.name
+  source_archive_object = google_storage_bucket_object.bq-post-dataflow-processing-zip.name
   event_trigger {
     event_type = "providers/cloud.pubsub/eventTypes/topic.publish"
     resource   = "projects/${var.data_project}/topics/${google_pubsub_topic.bq-post-dataflow-processing-topic.name}"
@@ -33,8 +33,8 @@ resource "google_cloudfunctions_function" "bq-notify-error-json-schema-function"
   runtime     = "python37"
 
   available_memory_mb   = 256
-  source_archive_bucket = "${google_storage_bucket.code-bucket.name}"
-  source_archive_object = "${google_storage_bucket_object.bq-notify-error-importing-json-file-zip.name}"
+  source_archive_bucket = google_storage_bucket.code-bucket.name
+  source_archive_object = google_storage_bucket_object.bq-notify-error-importing-json-file-zip.name
   event_trigger {
     event_type = "providers/cloud.pubsub/eventTypes/topic.publish"
     resource   = "projects/${var.data_project}/topics/${google_pubsub_topic.bq-error-importing-json-file-topic.name}"
@@ -56,8 +56,8 @@ resource "google_cloudfunctions_function" "bq-create-views-and-cleanup-function"
   runtime     = "python37"
 
   available_memory_mb   = 256
-  source_archive_bucket = "${google_storage_bucket.code-bucket.name}"
-  source_archive_object = "${google_storage_bucket_object.bq-create-views-and-cleanup-zip.name}"
+  source_archive_bucket = google_storage_bucket.code-bucket.name
+  source_archive_object = google_storage_bucket_object.bq-create-views-and-cleanup-zip.name
   event_trigger {
     event_type = "providers/cloud.pubsub/eventTypes/topic.publish"
     resource   = "projects/${var.data_project}/topics/${google_pubsub_topic.bq-create-views-and-cleanup-topic.name}"
@@ -79,8 +79,8 @@ resource "google_cloudfunctions_function" "df-cleanup-function" {
   runtime     = "python37"
 
   available_memory_mb   = 256
-  source_archive_bucket = "${google_storage_bucket.code-bucket.name}"
-  source_archive_object = "${google_storage_bucket_object.df-cleanup-zip.name}"
+  source_archive_bucket = google_storage_bucket.code-bucket.name
+  source_archive_object = google_storage_bucket_object.df-cleanup-zip.name
   event_trigger {
     event_type = "providers/cloud.pubsub/eventTypes/topic.publish"
     resource   = "projects/${var.data_project}/topics/${google_pubsub_topic.df-cleanup-topic.name}"

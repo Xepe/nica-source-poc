@@ -16,7 +16,7 @@ data "archive_file" "bq-post-dataflow-processing" {
 resource "google_storage_bucket_object" "bq-post-dataflow-processing-zip" {
   name       = local.bq_post_dataflow_processing_gcs_filename
   source     = ".${replace(path.module, path.root, "")}/code/bq_post_dataflow_processing.zip"
-  bucket     = "${google_storage_bucket.code-bucket.name}"
+  bucket     = google_storage_bucket.code-bucket.name
   depends_on = [google_storage_bucket.code-bucket]
 }
 
@@ -37,7 +37,7 @@ data "archive_file" "bq-notify-error-importing-json-file" {
 resource "google_storage_bucket_object" "bq-notify-error-importing-json-file-zip" {
   name       = local.bq_notify_error_importing_json_file_filename
   source     = ".${replace(path.module, path.root, "")}/code/bq_notify_error_importing_json_file.zip"
-  bucket     = "${google_storage_bucket.code-bucket.name}"
+  bucket     = google_storage_bucket.code-bucket.name
   depends_on = [google_storage_bucket.code-bucket]
 }
 
@@ -58,7 +58,7 @@ data "archive_file" "bq-create-views-and-cleanup" {
 resource "google_storage_bucket_object" "bq-create-views-and-cleanup-zip" {
   name       = local.bq_create_views_and_cleanup_filename
   source     = ".${replace(path.module, path.root, "")}/code/bq_create_views_and_cleanup.zip"
-  bucket     = "${google_storage_bucket.code-bucket.name}"
+  bucket     = google_storage_bucket.code-bucket.name
   depends_on = [google_storage_bucket.code-bucket]
 }
 
@@ -78,6 +78,6 @@ data "archive_file" "df-cleanup" {
 resource "google_storage_bucket_object" "df-cleanup-zip" {
   name       = local.df_cleanup_filename
   source     = ".${replace(path.module, path.root, "")}/code/df_cleanup.zip"
-  bucket     = "${google_storage_bucket.code-bucket.name}"
+  bucket     = google_storage_bucket.code-bucket.name
   depends_on = [google_storage_bucket.code-bucket]
 }

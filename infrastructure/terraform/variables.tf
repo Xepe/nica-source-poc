@@ -36,5 +36,5 @@ variable "regions" {
 }
 
 variable "notification_email" {
-  type = "string"
+  type = string
 }

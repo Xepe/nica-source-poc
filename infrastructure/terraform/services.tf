@@ -22,7 +22,7 @@ resource "google_project_service" "cloud-scheduler-service" {
 # Enable Cloud Big Query
 resource "google_project_service" "cloud-big-query-service" {
   project            = var.data_project
-  service            = "bigquery-json.googleapis.com"
+  service            = "bigquery.googleapis.com"
   disable_on_destroy = false
 }
 
