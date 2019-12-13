@@ -11,7 +11,7 @@ regions = [
   {
     name                      = "us"
     region                    = "us-central1"
-    bigquery_dataset_location = "US"
+    etl_region                = "us"
   }
 ]
 
