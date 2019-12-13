@@ -346,11 +346,6 @@ if __name__ == '__main__':
     # go to https://www.base64encode.org/
     # encode json object. See example
 
-    # {"project": "taxfyle-qa-data", "dest_dataset": "data_warehouse_us", "table" : "job_event", "etl_region": "us"}
-    # event = {
-    #     'data': 'eyJwcm9qZWN0IjogInRheGZ5bGUtcWEtZGF0YSIsICJkZXN0X2RhdGFzZXQiOiAiZGF0YV93YXJlaG91c2VfdXMiLCAidGFibGUiIDogImpvYl9ldmVudCIsICJldGxfcmVnaW9uIjogInVzIn0='
-    # }
-
     # {"project": "taxfyle-qa-data", "dest_dataset": "data_warehouse_us", "table" : "notifications", "etl_region": "us"}
     event = {
         'data': 'eyJwcm9qZWN0IjogInRheGZ5bGUtcWEtZGF0YSIsICJkZXN0X2RhdGFzZXQiOiAiZGF0YV93YXJlaG91c2VfdXMiLCAidGFibGUiIDogIm5vdGlmaWNhdGlvbnMiLCAiZXRsX3JlZ2lvbiI6ICJ1cyJ9'
