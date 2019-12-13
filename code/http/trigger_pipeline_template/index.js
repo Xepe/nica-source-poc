@@ -3,19 +3,21 @@ const dataflow = google.dataflow('v1b3');
 
 exports.executeTemplateInDataflow = (req, res) => {
   console.log('Starting dataflow template trigger'); 
-  var body = JSON.parse(req.body.toString());  
+  var body = JSON.parse(req.body.toString());
+  var now = new Date();
   var request = {
     projectId: process.env.GCLOUD_PROJECT,
     location: body.parameters.network_region,
     requestBody: {
-      jobName: `trigger-pipeline-template-${body.parameters.etl_region.toLowerCase()}`,
-      parameters: {        
+      jobName: `trigger-pipeline-template-${body.parameters.region}`,
+      parameters: {
+          // 'timestamp': now.toISOString()
       },
       environment: {
         tempLocation: `gs://${body.parameters.template_bucket}/tmp`
       }
     },
-    gcsPath: `gs://${body.parameters.template_bucket}/templates/pipeline-template-${body.parameters.etl_region.toLowerCase()}`
+    gcsPath: `gs://${body.parameters.template_bucket}/templates/pipeline-template-${body.parameters.region}`
   }
   
   console.log (request);

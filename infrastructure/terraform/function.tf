@@ -65,21 +65,21 @@ resource "google_cloudfunctions_function" "bq-notify-error-json-schema-function"
     depends_on = [google_project_service.cloud-function-service]
 }
 
-#  bq_refresh_table_function
-resource "google_cloudfunctions_function" "bq-refresh-table-function" {
+#  bq_create_views_and_cleanup_function
+resource "google_cloudfunctions_function" "bq-create-views-and-cleanup-function" {
     count           = length(var.regions)
     project         = var.data_project
     region          = lookup(var.regions[count.index], "region")
-    name            = "bq-refresh-table-${lookup(var.regions[count.index], "name")}"
-    description     = "BQ refresh table view"
+    name            = "bq-create-views-and-cleanup-${lookup(var.regions[count.index], "name")}"
+    description     = "BQ create view and cleanup"
     runtime         = "python37"
 
     available_memory_mb   = 256
     source_archive_bucket = "${google_storage_bucket.code-bucket.name}"
-    source_archive_object = "${google_storage_bucket_object.bq-refresh-table-zip.name}"
+    source_archive_object = "${google_storage_bucket_object.bq-create-views-and-cleanup-zip.name}"
     event_trigger {
         event_type = "providers/cloud.pubsub/eventTypes/topic.publish"
-        resource = "projects/${var.data_project}/topics/${google_pubsub_topic.bq-refresh-table-topic.name}"
+        resource = "projects/${var.data_project}/topics/${google_pubsub_topic.bq-create-views-and-cleanup-topic.name}"
     }
 
     entry_point           = "main"

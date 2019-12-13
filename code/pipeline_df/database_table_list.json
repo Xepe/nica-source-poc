@@ -41,15 +41,14 @@
         "database" : "jobs",
         "tables" : [
             { "name" : "job" },
-            { "name" : "job_event" },
-            { "name" : "legend_cache" }
+            { "name" : "job_event" }
         ]
     },
     {
         "database" : "legends",
         "tables" : [
-            { "name" : "legend" },
-            { "name" : "legend_version" }
+            { "name" : "legend" }
+
         ]
     },
     {
@@ -68,3 +67,4 @@
         ]
     }
 ]
+

@@ -1,16 +1,21 @@
 # pubsub topics
 
-#topic post-dataflow-processing-topic
-resource "google_pubsub_topic" "post-dataflow-processing-topic" {
-  name = "post-dataflow-processing-topic"  
+#topic bq-post-dataflow-processing-topic
+resource "google_pubsub_topic" "bq-post-dataflow-processing-topic" {
+  name = "bq-post-dataflow-processing"  
 }
 
-#topic bq-error-importing-json-file
-resource "google_pubsub_topic" "bq-error-importing-json-file" {
+#topic bq-error-importing-json-file-topic
+resource "google_pubsub_topic" "bq-error-importing-json-file-topic" {
   name = "bq-error-importing-json-file"  
 }
 
-#topic bq-refresh-table-view
-resource "google_pubsub_topic" "bq-refresh-table-view" {
-  name = "bq-refresh-table-view"  
+#topic bq-create-views-and-cleanup-topic
+resource "google_pubsub_topic" "bq-create-views-and-cleanup-topic" {
+  name = "bq-create-views-and-cleanup"  
+}
+
+#topic df-cleanup-topic
+resource "google_pubsub_topic" "df-cleanup-topic" {
+  name = "df-cleanup"  
 }

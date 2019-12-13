@@ -4,7 +4,6 @@ resource "google_cloud_scheduler_job" "dataflow-scheduler-job" {
   region    = lookup(var.regions[count.index], "region")
   name      = "dataflow-scheduler-job-${lookup(var.regions[count.index], "name")}"
   schedule  = "0 0/4 * * *"
-  # time_zone = "America/New_York"
 
   http_target {
     http_method = "POST"
@@ -15,7 +14,7 @@ resource "google_cloud_scheduler_job" "dataflow-scheduler-job" {
         parameters : {
           template_bucket = google_storage_bucket.code-bucket.name,
           network_region  = lookup(var.regions[count.index], "region"),
-          etl_region      = lookup(var.regions[count.index], "etl_region")
+          region          = lookup(var.regions[count.index], "name")
         }
       }
     ))

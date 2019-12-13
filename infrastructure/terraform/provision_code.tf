@@ -62,22 +62,22 @@ resource "google_storage_bucket_object" "bq-notify-error-importing-json-file-zip
 }
 
 
-# bq_refresh_table
+# bq_create_views_and_cleanup
 locals {
-    bq_refresh_table_filename = "bq_refresh_table_function_${substr(lower(replace(base64encode(data.archive_file.bq-refresh-table.output_md5), "=", "")), 0, 15)}.zip"
+    bq_create_views_and_cleanup_filename = "bq_create_views_and_cleanup_function_${substr(lower(replace(base64encode(data.archive_file.bq-create-views-and-cleanup.output_md5), "=", "")), 0, 15)}.zip"
 }
 
-# Zip Python bq_refresh_table folder
-data "archive_file" "bq-refresh-table" {
+# Zip Python bq_create_views_and_cleanup folder
+data "archive_file" "bq-create-views-and-cleanup" {
   type        = "zip"
-  source_dir = "./../../code/pubsub/bq_refresh_table"
-  output_path = ".${replace(path.module, path.root, "")}/code/bq_refresh_table.zip"  
+  source_dir = "./../../code/pubsub/bq_create_views_and_cleanup"
+  output_path = ".${replace(path.module, path.root, "")}/code/bq_create_views_and_cleanup.zip"  
 }
 
-# Provisioning bq_refresh_table to bucket
-resource "google_storage_bucket_object" "bq-refresh-table-zip" {
-  name   = local.bq_refresh_table_filename
-  source = ".${replace(path.module, path.root, "")}/code/bq_refresh_table.zip"
+# Provisioning bq_create_views_and_cleanup to bucket
+resource "google_storage_bucket_object" "bq-create-views-and-cleanup-zip" {
+  name   = local.bq_create_views_and_cleanup_filename
+  source = ".${replace(path.module, path.root, "")}/code/bq_create_views_and_cleanup.zip"
   bucket = "${google_storage_bucket.code-bucket.name}"
   depends_on = [google_storage_bucket.code-bucket]
 }
@@ -94,9 +94,9 @@ data "archive_file" "df-cleanup" {
   output_path = ".${replace(path.module, path.root, "")}/code/df_cleanup.zip"  
 }
 
-# Provisioning bq_refresh_table to bucket
+# Provisioning df_cleanup to bucket
 resource "google_storage_bucket_object" "df-cleanup-zip" {
-  name   = local.bq_refresh_table_filename
+  name   = local.df_cleanup_filename
   source = ".${replace(path.module, path.root, "")}/code/df_cleanup.zip"
   bucket = "${google_storage_bucket.code-bucket.name}"
   depends_on = [google_storage_bucket.code-bucket]

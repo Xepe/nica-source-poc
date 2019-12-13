@@ -16,7 +16,7 @@ def delete_folder(storage_client, bucket_name, prefix):
 
 
 def cleanup_binaries(storage_client, project_id, etl_region):
-    delete_folder(storage_client, '{}-code'.format(project_id), 'binaries_{}/'.format(etl_region))
+    delete_folder(storage_client, '{}-code'.format(project_id), 'binaries-{}/'.format(etl_region))
 
 
 # --------------------------------------- main ---------------------------------------------------------------
@@ -43,6 +43,7 @@ def main(event, context):
     storage_client = storage.Client(project=project)
 
     try:
+        logging.info("Cleanup binaries for project: `{}` region: `{}` ".format(project, etl_region))
         cleanup_binaries(storage_client, project, etl_region)
     except Exception as e:
         logging.error("Unknown error. Details: {}".format(e))

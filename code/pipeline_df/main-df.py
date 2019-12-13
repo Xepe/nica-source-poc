@@ -17,6 +17,7 @@ class UserOptions(PipelineOptions):
         parser.add_value_provider_argument('--dest_dataset', type=str, dest='dest_dataset', default='no_dataset')
         parser.add_value_provider_argument('--dest_bucket', type=str, dest='dest_bucket', default='no_bucket')
         parser.add_value_provider_argument('--etl_region', type=str, dest='etl_region', default='no_region')
+        parser.add_value_provider_argument('--timestamp', type=str)
 
 
 def load_db_schema():
@@ -77,66 +78,6 @@ def fix_jsons(element):
     return element
 
 
-def fix_json_arrays_with_different_schema(element):
-    from genson import SchemaBuilder
-
-    def convert_value_to_string(value):
-        if value is None or isinstance(value, bool):
-            return json.dumps(value)
-        else:
-            return str(value)
-
-    def analyze_list(elements):
-        has_objects = False
-        for item in elements:
-            if isinstance(item, dict):
-                has_objects = True
-                break
-        if not has_objects:
-            return
-
-        builder = SchemaBuilder()
-        for obj in elements:
-            builder.add_object(obj)
-
-        json_schema = json.loads(builder.to_json())
-        properties = json_schema['properties']
-        properties_to_modify = []
-
-        for prop in properties:
-            if 'anyOf' in properties[prop] or 'type' in properties[prop] and isinstance(properties[prop]['type'], list):
-                properties_to_modify.append(prop)
-
-        for property_to_modify in properties_to_modify:
-            for obj in elements:
-                new_values = []
-                if isinstance(obj[property_to_modify], list):
-                    for value in obj[property_to_modify]:
-                        new_values.append(convert_value_to_string(value))
-                else:
-                    new_values.append(convert_value_to_string(obj[property_to_modify]))
-                obj[property_to_modify] = new_values
-
-    def analyze_json_object(parent, key, value):
-        if isinstance(value, list):
-            for item in value:
-                if isinstance(item, dict) or isinstance(item, list):
-                    analyze_json_object(parent, key, item)
-
-        if isinstance(value, dict):
-            for k, v in value.items():
-                analyze_json_object(value, k, v)
-
-        if isinstance(value, list):
-            analyze_list(value)
-
-    for field_key, field_value in element.items():
-        if isinstance(field_value, dict) or isinstance(field_value, list):
-            analyze_json_object(element, field_key, field_value)
-
-    return element
-
-
 def fix_other_schema_issues(element, table_name):
 
     def convert_value_to_string(value):
@@ -145,17 +86,17 @@ def fix_other_schema_issues(element, table_name):
         else:
             return str(value)
 
-    def analyze_json_object(parent, key, value, level):
+    def analyze_field(parent, key, value, level):
         if isinstance(value, list):
             for item in value:
                 if isinstance(item, dict) or isinstance(item, list):
-                    analyze_json_object(parent, key, item, level + 1)
+                    analyze_field(parent, key, item, level + 1)
 
         if isinstance(value, dict):
             for k, v in value.items():
-                analyze_json_object(value, k, v, level + 1)
+                analyze_field(value, k, v, level + 1)
 
-        # fix answers structure in table: job  field: answers.answer -> convert all answer object to string array
+        # fix answers structure in table: job, job_event.  field: answers.answer -> to string array
         if (table_name == 'job' and level == 1 and key == 'answers' and isinstance(value, list)) or \
            (table_name == 'job_event' and level == 3 and key == 'answers' and isinstance(value, list)):
             for answer in parent[key]:
@@ -169,17 +110,27 @@ def fix_other_schema_issues(element, table_name):
 
                     answer['answer'] = new_values
 
-        # fix encrypted structure in table: message, field: content.text.encrypted -> ignore encrypted data
-        if table_name == 'message' and level == 3 and key == 'encrypted':
-            parent[key] = None
+        # fix stripe_charges in tables: job, job_event -> remove null values from array
+        if (table_name == 'job' and level == 1 and key == 'stripe_charges' and isinstance(value, list)) or \
+           (table_name == 'job_event' and level == 3 and key == 'stripe_charges' and isinstance(value, list)):
+            parent[key] = [i for i in value if i]
 
-        # fix empty structs, they should be null
+        # fix repeatable elements with null value
+        if (table_name == 'job' and level == 1 and (key == 'rating_received_categories' or key == 'rating_submitted_categories')) or \
+           (table_name == 'job_event' and level == 3 and (key == 'rating_received_categories' or key == 'rating_submitted_categories')):
+            if value is None:
+                parent[key] = []
+
+        # fix encrypted structure in table: message, field: content.text.encrypted -> to string to do not data loss
+        if table_name == 'message' and level == 3 and key == 'encrypted':
+            parent[key] = str(value)
+
+        # fix empty structs {}, they should be null
         if isinstance(parent[key], dict) and not bool(parent[key]):
             parent[key] = None
 
     for field_key, field_value in element.items():
-        if isinstance(field_value, dict) or isinstance(field_value, list):
-            analyze_json_object(element, field_key, field_value, 1)
+        analyze_field(element, field_key, field_value, 1)
 
     return element
 
@@ -218,7 +169,7 @@ def publish_to_pubsub(element, project, dest_dataset, table, etl_region, topic):
     logging.info("Pubsub message Id: {}. Sent message {}".format(future.result(), data))
 
 
-def publish_to_cleanup_pubsub(project, topic):
+def publish_to_cleanup_pubsub(project, etl_region,  topic):
     import logging
     from google.cloud import pubsub_v1
     logging.getLogger().setLevel(logging.INFO)
@@ -226,7 +177,8 @@ def publish_to_cleanup_pubsub(project, topic):
     publisher = pubsub_v1.PublisherClient()
     topic_path = publisher.topic_path(project, topic)
     message = {
-        'project': project
+        'project': project,
+        'etl_region': etl_region
     }
     data = json.dumps(message).encode('utf-8')
     future = publisher.publish(topic_path, data=data)
@@ -287,7 +239,7 @@ def run(argv=None):
                             | "Sending message to PubSub for: {}[{}]".format(d['database'], e['table']['name']) >> beam.Map(publish_to_pubsub, project, dataset, e['table']['name'], etl_region, bq_post_dataflow_processing_topic)
 
         # clean up binaries
-        publish_to_cleanup_pubsub(project, df_cleanup_topic)
+        publish_to_cleanup_pubsub(project, etl_region, df_cleanup_topic)
 
     except Exception as e:
         logging.error('Error creating pipeline. Details:{}'.format(e))

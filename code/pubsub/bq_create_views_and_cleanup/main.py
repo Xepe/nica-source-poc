@@ -2,7 +2,6 @@ import base64
 import json
 from google.cloud import bigquery
 from google.cloud import storage
-from google.cloud.exceptions import GoogleCloudError
 import logging
 
 
@@ -10,39 +9,6 @@ def get_blobs_in_staging(storage_client, project_id, etl_region, table):
     bucket_name = '{}-staging-{}'.format(project_id, etl_region)
     blobs = list(storage_client.list_blobs(bucket_name, prefix='{}.jsonl'.format(table)))
     return sorted(blobs, key=lambda blob: blob.name)
-
-
-# save blobs to versioned tables
-def save_blob_to_bigquery_table(bigquery_client, project_id, dataset_id, table_id, blob, etl_region, schema):
-
-    dataset_ref = bigquery_client.dataset(dataset_id)
-    dataset = bigquery_client.get_dataset(dataset_ref.dataset_id)
-
-    job_config = bigquery.LoadJobConfig()
-    job_config.source_format = bigquery.SourceFormat.NEWLINE_DELIMITED_JSON
-    job_config.write_disposition = 'WRITE_TRUNCATE'
-    job_config.schema = schema
-    uri = "gs://{}-staging-{}/{}".format(project_id, etl_region, blob.name)
-
-    load_job = bigquery_client.load_table_from_uri(
-        uri,
-        dataset_ref.table(table_id),
-        location=dataset.location,
-        job_config=job_config,
-    )  # API request
-    logging.info("Starting job: `{}` to load data into table: `{}`.".format(load_job.job_id, table_id))
-    load_job.result()
-    logging.info("Job `{}` finished. Data loaded to version table: `{}`.".format(load_job.job_id, table_id))
-    destination_table = bigquery_client.get_table(dataset_ref.table(table_id))
-    logging.info("There are `{}` rows in versioned table: `{}`.".format(destination_table.num_rows, table_id))
-
-
-def get_staging_schema(bigquery_client, dataset_id, table_id):
-    dataset_ref = bigquery_client.dataset(dataset_id)
-    dataset = bigquery_client.get_dataset(dataset_ref.dataset_id)
-    staging_table_ref = dataset.table('{}_staging'.format(table_id))
-    staging_table = bigquery_client.get_table(staging_table_ref)
-    return staging_table.schema
 
 
 # remove staging tables
@@ -86,19 +52,11 @@ def main(event, context):
 
     for blob in blobs:
         try:
-            # get current schema
-            schema = get_staging_schema(bigquery_client,dataset, table)
-            
-            # save blob to table
-            save_blob_to_bigquery_table(bigquery_client, project, dataset, table, blob, etl_region, schema)
-
             # delete staging table related to the table
             remove_staging_table(bigquery_client, project, dataset, table)
 
             blob.delete();
 
-        except GoogleCloudError as e:
-            logging.error("Error loading blob: `{}` to table: `{}.{}`. Details: {}".format(blob.name, dataset, table, e))
         except Exception as e:
             logging.error("Unknown error. Details: {}".format(e))
 
