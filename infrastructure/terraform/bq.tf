@@ -4,5 +4,5 @@ resource "google_bigquery_dataset" "dataset" {
   dataset_id    = "${var.dest_dataset}_${lookup(var.regions[count.index], "name")}"
   friendly_name = "${var.dest_dataset}_${lookup(var.regions[count.index], "name")}"
   description   = "Taxfyle data warehouse dataset - ${lookup(var.regions[count.index], "name")}"
-  location      = upper(lookup(var.regions[count.index], "name"))
+  location      = lookup(var.regions[count.index], "bigquery_dataset_location")
 }

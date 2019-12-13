@@ -17,9 +17,9 @@ resource "google_storage_bucket" "code-bucket" {
 
 # Staging bucket
 resource "google_storage_bucket" "staging-bucket" {
-    count         = length(var.regions)
-    name          = "${var.data_project}-staging-${lookup(var.regions[count.index], "name")}"
-    project       = var.data_project    
-    location      = lookup(var.regions[count.index], "region")
-    force_destroy = true      
+  count         = length(var.regions)
+  name          = "${var.data_project}-staging-${lookup(var.regions[count.index], "name")}"
+  project       = var.data_project
+  location      = lookup(var.regions[count.index], "region")
+  force_destroy = true
 }
