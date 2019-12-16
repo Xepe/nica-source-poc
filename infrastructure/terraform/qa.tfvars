@@ -10,7 +10,7 @@ dest_dataset = "data_warehouse"
 regions = [
   {
     name                      = "us"
-    region                    = "us-central1"
+    region                    = "us-central1"    
     bigquery_dataset_location = "US"
   }
 ]

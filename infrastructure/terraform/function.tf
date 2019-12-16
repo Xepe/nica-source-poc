@@ -8,6 +8,7 @@ resource "google_cloudfunctions_function" "bq-post-dataflow-processing-function"
   name        = "bq-post-dataflow-processing-${lookup(var.regions[count.index], "name")}"
   description = "Execute post processing actions after pipeline execution"
   runtime     = "python37"
+  service_account_email = google_service_account.service-project-service-account-data-pipeline.email
 
   available_memory_mb   = 512
   source_archive_bucket = google_storage_bucket.code-bucket.name
@@ -31,6 +32,7 @@ resource "google_cloudfunctions_function" "bq-notify-error-json-schema-function"
   name        = "bq-notify-error-json-schema-${lookup(var.regions[count.index], "name")}"
   description = "Split a JSON file into several files per schema founds"
   runtime     = "python37"
+  service_account_email = google_service_account.service-project-service-account-data-pipeline.email
 
   available_memory_mb   = 256
   source_archive_bucket = google_storage_bucket.code-bucket.name
@@ -54,6 +56,7 @@ resource "google_cloudfunctions_function" "bq-create-views-and-cleanup-function"
   name        = "bq-create-views-and-cleanup-${lookup(var.regions[count.index], "name")}"
   description = "BQ create view and cleanup"
   runtime     = "python37"
+  service_account_email = google_service_account.service-project-service-account-data-pipeline.email
 
   available_memory_mb   = 256
   source_archive_bucket = google_storage_bucket.code-bucket.name
@@ -77,6 +80,7 @@ resource "google_cloudfunctions_function" "df-cleanup-function" {
   name        = "df-cleanup-${lookup(var.regions[count.index], "name")}"
   description = "Cleanup Dataflow binaries"
   runtime     = "python37"
+  service_account_email = google_service_account.service-project-service-account-data-pipeline.email
 
   available_memory_mb   = 256
   source_archive_bucket = google_storage_bucket.code-bucket.name

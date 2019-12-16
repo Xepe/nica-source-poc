@@ -81,3 +81,40 @@ resource "google_storage_bucket_object" "df-cleanup-zip" {
   bucket     = google_storage_bucket.code-bucket.name
   depends_on = [google_storage_bucket.code-bucket]
 }
+
+
+# ----------------------------------------pipeline function---------------------------------------------------- 
+
+# main_df.py, requirements.txt, database_table_list.json files
+resource "null_resource" "reprovisioning-pipeline-code" {
+  count  = length(var.regions)
+  triggers = {
+    main_df_sha1 = "${sha1(file("./../../code/pipeline_df/main-df.py"))}",
+    requirements_sha1 = "${sha1(file("./../../code/pipeline_df/requirements.txt"))}",
+    table_list_sha1 = "${sha1(file("./../../code/pipeline_df/database_table_list.json"))}"
+  }
+
+  connection {
+    type        = "ssh"
+    user        = "gcp_user"
+    private_key = tls_private_key.ssh-key.private_key_pem
+    host        = google_compute_instance.default[count.index].network_interface.0.access_config.0.nat_ip
+  }
+
+  provisioner "file" {
+    source      = "./../../code/pipeline_df/main-df.py"
+    destination = "/home/gcp_user/main-df.py"
+  }
+
+  provisioner "file" {
+    source      = "./../../code/pipeline_df/requirements.txt"
+    destination = "/home/gcp_user/requirements.txt"
+  }
+
+  provisioner "file" {
+    source      = "./../../code/pipeline_df/database_table_list.json"
+    destination = "/home/gcp_user/database_table_list.json"
+  }
+
+  depends_on = [tls_private_key.ssh-key, google_compute_instance.default]
+}

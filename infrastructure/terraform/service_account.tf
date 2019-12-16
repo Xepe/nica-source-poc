@@ -66,6 +66,14 @@ resource "google_project_iam_member" "service-project-service-account-data-pipel
   depends_on = [google_service_account.service-project-service-account-data-pipeline]
 }
 
+# Grant access to invoke Cloud functions
+resource "google_project_iam_member" "service-project-service-account-data-pipeline-invoke-cloud-function" {
+  project    = var.data_project
+  role       = "roles/cloudfunctions.invoker"
+  member     = "serviceAccount:${google_service_account.service-project-service-account-data-pipeline.email}"
+  depends_on = [google_service_account.service-project-service-account-data-pipeline]
+}
+
 # Grant access in host project (access network, access SQL intance)
 # Grant access to shared VPC
 resource "google_project_iam_member" "host-project-service-account-data-pipeline-shared-vpc" {

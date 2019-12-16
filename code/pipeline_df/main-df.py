@@ -17,11 +17,13 @@ class UserOptions(PipelineOptions):
         parser.add_value_provider_argument('--dest_dataset', type=str, dest='dest_dataset', default='no_dataset')
         parser.add_value_provider_argument('--dest_bucket', type=str, dest='dest_bucket', default='no_bucket')
         parser.add_value_provider_argument('--etl_region', type=str, dest='etl_region', default='no_region')
-        parser.add_value_provider_argument('--timestamp', type=str)
 
 
 def load_db_schema():
-    with open('database_table_list.json') as json_file:
+    import os
+    path = 'database_table_list.json' if os.name == 'nt' else '/home/gcp_user/database_table_list.json'
+
+    with open(path) as json_file:
         return json.load(json_file)
 
 
