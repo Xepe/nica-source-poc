@@ -87,11 +87,11 @@ resource "google_storage_bucket_object" "df-cleanup-zip" {
 
 # main_df.py, requirements.txt, database_table_list.json files
 resource "null_resource" "reprovisioning-pipeline-code" {
-  count  = length(var.regions)
+  count = length(var.regions)
   triggers = {
-    main_df_sha1 = "${sha1(file("./../../code/pipeline_df/main-df.py"))}",
+    main_df_sha1      = "${sha1(file("./../../code/pipeline_df/main-df.py"))}",
     requirements_sha1 = "${sha1(file("./../../code/pipeline_df/requirements.txt"))}",
-    table_list_sha1 = "${sha1(file("./../../code/pipeline_df/database_table_list.json"))}"
+    table_list_sha1   = "${sha1(file("./../../code/pipeline_df/database_table_list.json"))}"
   }
 
   connection {
