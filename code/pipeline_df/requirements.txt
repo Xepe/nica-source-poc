@@ -1,3 +1,7 @@
 google-cloud
 apache-beam[gcp]
 beam-nuggets
+six==1.13.0
+Cython==0.29.13
+genson
+simplejson

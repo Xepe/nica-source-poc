@@ -45,7 +45,7 @@ resource "google_project_iam_member" "service-project-service-account-data-pipel
 # Grant access to save data to bukects in the service project 
 resource "google_project_iam_member" "service-project-service-account-data-pipeline-admin-buckets" {
   project    = var.data_project
-  role       = "roles/storage.objectAdmin"
+  role       = "roles/storage.admin"
   member     = "serviceAccount:${google_service_account.service-project-service-account-data-pipeline.email}"
   depends_on = [google_service_account.service-project-service-account-data-pipeline]
 }
@@ -54,6 +54,22 @@ resource "google_project_iam_member" "service-project-service-account-data-pipel
 resource "google_project_iam_member" "service-project-service-account-data-pipeline-admin-bq" {
   project    = var.data_project
   role       = "roles/bigquery.admin"
+  member     = "serviceAccount:${google_service_account.service-project-service-account-data-pipeline.email}"
+  depends_on = [google_service_account.service-project-service-account-data-pipeline]
+}
+
+# Grant access to publish message to a pubsub
+resource "google_project_iam_member" "service-project-service-account-data-pipeline-publish-pubsub" {
+  project    = var.data_project
+  role       = "roles/pubsub.publisher"
+  member     = "serviceAccount:${google_service_account.service-project-service-account-data-pipeline.email}"
+  depends_on = [google_service_account.service-project-service-account-data-pipeline]
+}
+
+# Grant access to invoke Cloud functions
+resource "google_project_iam_member" "service-project-service-account-data-pipeline-invoke-cloud-function" {
+  project    = var.data_project
+  role       = "roles/cloudfunctions.invoker"
   member     = "serviceAccount:${google_service_account.service-project-service-account-data-pipeline.email}"
   depends_on = [google_service_account.service-project-service-account-data-pipeline]
 }
