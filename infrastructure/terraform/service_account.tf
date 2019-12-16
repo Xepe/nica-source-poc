@@ -45,7 +45,7 @@ resource "google_project_iam_member" "service-project-service-account-data-pipel
 # Grant access to save data to bukects in the service project 
 resource "google_project_iam_member" "service-project-service-account-data-pipeline-admin-buckets" {
   project    = var.data_project
-  role       = "roles/storage.objectAdmin"
+  role       = "roles/storage.admin"
   member     = "serviceAccount:${google_service_account.service-project-service-account-data-pipeline.email}"
   depends_on = [google_service_account.service-project-service-account-data-pipeline]
 }
