@@ -2,12 +2,12 @@
 
 # post_dataflow_processing_function
 resource "google_cloudfunctions_function" "bq-post-dataflow-processing-function" {
-  count       = length(var.regions)
-  project     = var.data_project
-  region      = lookup(var.regions[count.index], "cloud_function_region")
-  name        = "bq-post-dataflow-processing-${lookup(var.regions[count.index], "name")}"
-  description = "Execute post processing actions after pipeline execution"
-  runtime     = "python37"
+  count                 = length(var.regions)
+  project               = var.data_project
+  region                = lookup(var.regions[count.index], "cloud_function_region")
+  name                  = "bq-post-dataflow-processing-${lookup(var.regions[count.index], "name")}"
+  description           = "Execute post processing actions after pipeline execution"
+  runtime               = "python37"
   service_account_email = google_service_account.service-project-service-account-data-pipeline.email
 
   available_memory_mb   = 512
@@ -26,12 +26,12 @@ resource "google_cloudfunctions_function" "bq-post-dataflow-processing-function"
 
 # notify_error_importing_json_file_to_bq_function
 resource "google_cloudfunctions_function" "bq-notify-error-json-schema-function" {
-  count       = length(var.regions)
-  project     = var.data_project
-  region      = lookup(var.regions[count.index], "cloud_function_region")
-  name        = "bq-notify-error-json-schema-${lookup(var.regions[count.index], "name")}"
-  description = "Split a JSON file into several files per schema founds"
-  runtime     = "python37"
+  count                 = length(var.regions)
+  project               = var.data_project
+  region                = lookup(var.regions[count.index], "cloud_function_region")
+  name                  = "bq-notify-error-json-schema-${lookup(var.regions[count.index], "name")}"
+  description           = "Split a JSON file into several files per schema founds"
+  runtime               = "python37"
   service_account_email = google_service_account.service-project-service-account-data-pipeline.email
 
   available_memory_mb   = 256
@@ -50,12 +50,12 @@ resource "google_cloudfunctions_function" "bq-notify-error-json-schema-function"
 
 #  bq_create_views_and_cleanup_function
 resource "google_cloudfunctions_function" "bq-create-views-and-cleanup-function" {
-  count       = length(var.regions)
-  project     = var.data_project
-  region      = lookup(var.regions[count.index], "cloud_function_region")
-  name        = "bq-create-views-and-cleanup-${lookup(var.regions[count.index], "name")}"
-  description = "BQ create view and cleanup"
-  runtime     = "python37"
+  count                 = length(var.regions)
+  project               = var.data_project
+  region                = lookup(var.regions[count.index], "cloud_function_region")
+  name                  = "bq-create-views-and-cleanup-${lookup(var.regions[count.index], "name")}"
+  description           = "BQ create view and cleanup"
+  runtime               = "python37"
   service_account_email = google_service_account.service-project-service-account-data-pipeline.email
 
   available_memory_mb   = 256
@@ -74,12 +74,12 @@ resource "google_cloudfunctions_function" "bq-create-views-and-cleanup-function"
 
 #  df_cleanup
 resource "google_cloudfunctions_function" "df-cleanup-function" {
-  count       = length(var.regions)
-  project     = var.data_project
-  region      = lookup(var.regions[count.index], "cloud_function_region")
-  name        = "df-cleanup-${lookup(var.regions[count.index], "name")}"
-  description = "Cleanup Dataflow binaries"
-  runtime     = "python37"
+  count                 = length(var.regions)
+  project               = var.data_project
+  region                = lookup(var.regions[count.index], "cloud_function_region")
+  name                  = "df-cleanup-${lookup(var.regions[count.index], "name")}"
+  description           = "Cleanup Dataflow binaries"
+  runtime               = "python37"
   service_account_email = google_service_account.service-project-service-account-data-pipeline.email
 
   available_memory_mb   = 256
