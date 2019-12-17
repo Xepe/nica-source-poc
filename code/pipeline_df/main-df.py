@@ -5,6 +5,9 @@ import apache_beam as beam
 from beam_nuggets.io import relational_db
 from apache_beam.options.pipeline_options import GoogleCloudOptions, PipelineOptions, SetupOptions
 import simplejson as json
+import google.cloud.logging
+client = google.cloud.logging.Client()
+client.setup_logging()
 
 
 class UserOptions(PipelineOptions):
