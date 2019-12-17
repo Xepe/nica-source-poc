@@ -11,6 +11,7 @@ regions = [
   {
     name                      = "us"
     region                    = "us-central1"
+    cloud_function_region     = "us-central1"
     bigquery_dataset_location = "US"
   }
 ]

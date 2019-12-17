@@ -25,3 +25,10 @@ resource "google_project_service" "cloud-storage-service" {
   service            = "storage-component.googleapis.com"
   disable_on_destroy = false
 }
+
+# Enable Compute Engine
+resource "google_project_service" "cloud-compute-engine" {
+  project            = var.data_project
+  service            = "compute.googleapis.com"
+  disable_on_destroy = true
+}

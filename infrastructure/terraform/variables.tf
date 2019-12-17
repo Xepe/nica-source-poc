@@ -31,6 +31,7 @@ variable "regions" {
   type = list(object({
     name                      = string
     region                    = string
+    cloud_function_region     = string
     bigquery_dataset_location = string
   }))
 }
