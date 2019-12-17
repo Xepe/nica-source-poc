@@ -2,21 +2,12 @@
 
 # post_dataflow_processing_function
 resource "google_cloudfunctions_function" "bq-post-dataflow-processing-function" {
-<<<<<<< HEAD
-  count                 = length(var.regions)
-  project               = var.data_project
-  region                = lookup(var.regions[count.index], "region")
-  name                  = "bq-post-dataflow-processing-${lookup(var.regions[count.index], "name")}"
-  description           = "Execute post processing actions after pipeline execution"
-  runtime               = "python37"
-=======
   count       = length(var.regions)
   project     = var.data_project
   region      = lookup(var.regions[count.index], "cloud_function_region")
   name        = "bq-post-dataflow-processing-${lookup(var.regions[count.index], "name")}"
   description = "Execute post processing actions after pipeline execution"
   runtime     = "python37"
->>>>>>> Adding a new variable for cloud_storage_region due to cloud functions are not supported by "australia-southeast1" region
   service_account_email = google_service_account.service-project-service-account-data-pipeline.email
 
   available_memory_mb   = 512
@@ -35,21 +26,12 @@ resource "google_cloudfunctions_function" "bq-post-dataflow-processing-function"
 
 # notify_error_importing_json_file_to_bq_function
 resource "google_cloudfunctions_function" "bq-notify-error-json-schema-function" {
-<<<<<<< HEAD
-  count                 = length(var.regions)
-  project               = var.data_project
-  region                = lookup(var.regions[count.index], "region")
-  name                  = "bq-notify-error-json-schema-${lookup(var.regions[count.index], "name")}"
-  description           = "Split a JSON file into several files per schema founds"
-  runtime               = "python37"
-=======
   count       = length(var.regions)
   project     = var.data_project
   region      = lookup(var.regions[count.index], "cloud_function_region")
   name        = "bq-notify-error-json-schema-${lookup(var.regions[count.index], "name")}"
   description = "Split a JSON file into several files per schema founds"
   runtime     = "python37"
->>>>>>> Adding a new variable for cloud_storage_region due to cloud functions are not supported by "australia-southeast1" region
   service_account_email = google_service_account.service-project-service-account-data-pipeline.email
 
   available_memory_mb   = 256
@@ -92,21 +74,12 @@ resource "google_cloudfunctions_function" "bq-create-views-and-cleanup-function"
 
 #  df_cleanup
 resource "google_cloudfunctions_function" "df-cleanup-function" {
-<<<<<<< HEAD
-  count                 = length(var.regions)
-  project               = var.data_project
-  region                = lookup(var.regions[count.index], "region")
-  name                  = "df-cleanup-${lookup(var.regions[count.index], "name")}"
-  description           = "Cleanup Dataflow binaries"
-  runtime               = "python37"
-=======
   count       = length(var.regions)
   project     = var.data_project
   region      = lookup(var.regions[count.index], "cloud_function_region")
   name        = "df-cleanup-${lookup(var.regions[count.index], "name")}"
   description = "Cleanup Dataflow binaries"
   runtime     = "python37"
->>>>>>> Adding a new variable for cloud_storage_region due to cloud functions are not supported by "australia-southeast1" region
   service_account_email = google_service_account.service-project-service-account-data-pipeline.email
 
   available_memory_mb   = 256
