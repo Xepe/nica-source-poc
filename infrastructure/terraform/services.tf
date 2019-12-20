@@ -32,3 +32,10 @@ resource "google_project_service" "cloud-compute-engine" {
   service            = "compute.googleapis.com"
   disable_on_destroy = true
 }
+
+# Enable StackDriver API
+resource "google_project_service" "stackdriver-service" {
+  project             = var.data_project
+  service             = "logging.googleapis.com"
+  disable_on_destroy  = false
+}
