@@ -10,12 +10,12 @@ resource "google_cloudfunctions_function" "bq-post-dataflow-processing-function"
   runtime               = "python37"
   service_account_email = google_service_account.service-project-service-account-data-pipeline.email
 
-  available_memory_mb   = 512
+  available_memory_mb   = 2048
   source_archive_bucket = google_storage_bucket.code-bucket.name
   source_archive_object = google_storage_bucket_object.bq-post-dataflow-processing-zip.name
   event_trigger {
     event_type = "providers/cloud.pubsub/eventTypes/topic.publish"
-    resource   = "projects/${var.data_project}/topics/${google_pubsub_topic.bq-post-dataflow-processing-topic.name}"
+    resource   = "projects/${var.data_project}/topics/${google_pubsub_topic.bq-post-dataflow-processing-topic.*.name[count.index]}"
   }
 
   entry_point = "main"
@@ -39,7 +39,7 @@ resource "google_cloudfunctions_function" "bq-notify-error-json-schema-function"
   source_archive_object = google_storage_bucket_object.bq-notify-error-importing-json-file-zip.name
   event_trigger {
     event_type = "providers/cloud.pubsub/eventTypes/topic.publish"
-    resource   = "projects/${var.data_project}/topics/${google_pubsub_topic.bq-error-importing-json-file-topic.name}"
+    resource   = "projects/${var.data_project}/topics/${google_pubsub_topic.bq-error-importing-json-file-topic.*.name[count.index]}"
   }
 
   entry_point = "main"
@@ -63,7 +63,7 @@ resource "google_cloudfunctions_function" "bq-create-views-and-cleanup-function"
   source_archive_object = google_storage_bucket_object.bq-create-views-and-cleanup-zip.name
   event_trigger {
     event_type = "providers/cloud.pubsub/eventTypes/topic.publish"
-    resource   = "projects/${var.data_project}/topics/${google_pubsub_topic.bq-create-views-and-cleanup-topic.name}"
+    resource   = "projects/${var.data_project}/topics/${google_pubsub_topic.bq-create-views-and-cleanup-topic.*.name[count.index]}"
   }
 
   entry_point = "main"
@@ -87,7 +87,7 @@ resource "google_cloudfunctions_function" "df-cleanup-function" {
   source_archive_object = google_storage_bucket_object.df-cleanup-zip.name
   event_trigger {
     event_type = "providers/cloud.pubsub/eventTypes/topic.publish"
-    resource   = "projects/${var.data_project}/topics/${google_pubsub_topic.df-cleanup-topic.name}"
+    resource   = "projects/${var.data_project}/topics/${google_pubsub_topic.df-cleanup-topic.*.name[count.index]}"
   }
 
   entry_point = "main"

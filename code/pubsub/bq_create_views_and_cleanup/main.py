@@ -5,20 +5,32 @@ from google.cloud import storage
 import logging
 
 
+# ------------------------------------storage functions--------------------------------------------------------------
 def get_blobs_in_staging(storage_client, project_id, etl_region, table):
     bucket_name = '{}-staging-{}'.format(project_id, etl_region)
     blobs = list(storage_client.list_blobs(bucket_name, prefix='{}.jsonl'.format(table)))
     return sorted(blobs, key=lambda blob: blob.name)
 
 
+# ------------------------------------bigquery functions--------------------------------------------------------------
+# bigquery, check if table exists
+def exists_table(bigquery_client, dataset_id, table_id):
+    from google.cloud.exceptions import NotFound
+    dataset = bigquery_client.get_dataset(dataset_id)
+    table_ref = dataset.table(table_id)
+    try:
+        bigquery_client.get_table(table_ref)
+        return True
+    except NotFound:
+        return False
+
+
 # remove staging tables
 def remove_staging_table(bigquery_client, project_id, dataset_id, table_id):
-    try:
+    if exists_table(bigquery_client, dataset_id, '{}_staging'.format(table_id)):
         staging_table = bigquery_client.get_table('{}.{}.{}_staging'.format(project_id, dataset_id, table_id))
         logging.info('Deleting staging table: `{}`'.format(staging_table.table_id))
         bigquery_client.delete_table(staging_table)
-    except Exception as e:
-        pass  # staging table doesn't exist
 
 
 def main(event, context):
@@ -67,9 +79,9 @@ if __name__ == '__main__':
     # go to https://www.base64encode.org/
     # encode json object. See example
 
-    # {"project": "taxfyle-qa-data", "dest_dataset": "data_warehouse_us", "table" : "document", "etl_region": "us"}
+    # {"project": "taxfyle-staging-data", "dest_dataset": "data_warehouse_aus", "table" : "tag", "etl_region": "aus"}
     event ={
-        'data': 'eyJwcm9qZWN0IjogInRheGZ5bGUtcWEtZGF0YSIsICJkZXN0X2RhdGFzZXQiOiAiZGF0YV93YXJlaG91c2VfdXMiLCAidGFibGUiIDogImRvY3VtZW50IiwgImV0bF9yZWdpb24iOiAidXMifQ=='
+        'data': 'eyJwcm9qZWN0IjogInRheGZ5bGUtc3RhZ2luZy1kYXRhIiwgImRlc3RfZGF0YXNldCI6ICJkYXRhX3dhcmVob3VzZV9hdXMiLCAidGFibGUiIDogInRhZyIsICJldGxfcmVnaW9uIjogImF1cyJ9'
     }
 
     context = {}

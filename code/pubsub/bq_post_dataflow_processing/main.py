@@ -19,6 +19,7 @@ bq_create_views_and_cleanup = 'bq-create-views-and-cleanup'
 schema_history_table_name = 'schema_history'
 
 
+# ------------------------------------storage functions--------------------------------------------------------------
 def get_blobs_in_staging(storage_client, project_id, etl_region, table):
     bucket_name = '{}-staging-{}'.format(project_id, etl_region)
     blobs = list(storage_client.list_blobs(bucket_name, prefix='{}.jsonl'.format(table)))
@@ -185,7 +186,6 @@ def save_blob_to_bigquery_staging_table(bigquery_client, project_id, dataset_id,
 
     job_config = bigquery.LoadJobConfig()
     job_config.source_format = bigquery.SourceFormat.NEWLINE_DELIMITED_JSON
-    # job_config.schema_update_options = [SchemaUpdateOption.ALLOW_FIELD_ADDITION] #  ['ALLOW_FIELD_ADDITION']
     if schema is None:
         job_config.autodetect = True
     else:
@@ -256,9 +256,9 @@ def publish_to_pubsub(project, dest_dataset, table, etl_region, topic, details=N
     import logging
     from google.cloud import pubsub_v1
     logging.getLogger().setLevel(logging.INFO)
-    logging.info("Sending message to PubSub: `projects/{}/topics/{}`".format(project, topic))
+    logging.info("Sending message to PubSub: `projects/{}/topics/{}-{}`".format(project, topic, etl_region))
     publisher = pubsub_v1.PublisherClient()
-    topic_path = publisher.topic_path(project, topic)
+    topic_path = publisher.topic_path(project, '{}-{}'.format(topic, etl_region))
 
     message = {
         'project': project,
@@ -315,16 +315,19 @@ def main(event, context):
             if exists_table(bigquery_client, dataset, table):
                 current_schema = get_table_schema(bigquery_client, dataset, table)
 
-            # save blob to bigquery staging table
-            save_blob_to_bigquery_staging_table(bigquery_client, project, dataset, table, blob, etl_region, current_schema)
+            # save blob to BigQuery staging table if json is not empty
+            if blob.size > 0:
+                save_blob_to_bigquery_staging_table(bigquery_client, project, dataset, table, blob, etl_region, current_schema)
 
-            # analyze schemas
-            schema, version = manage_table_schemas(bigquery_client, dataset, table)
+            # check schema and refresh table if staging table was created (json is not empty)
+            if exists_table(bigquery_client, dataset, '{}_staging'.format(table)):
+                # analyze schemas
+                schema, version = manage_table_schemas(bigquery_client, dataset, table)
 
-            # save blob to big query using last table_version
-            save_blob_to_bigquery_current_table(bigquery_client, project, dataset, table, blob, etl_region, schema)
+                # save blob to big query using last table_version
+                save_blob_to_bigquery_current_table(bigquery_client, project, dataset, table, blob, etl_region, schema)
 
-            # send pubsub message to refresh table views
+            # send pubsub message to refresh table views and cleanup
             publish_to_pubsub(project, dataset, table, etl_region, bq_create_views_and_cleanup)
 
         except BadBlobSchemaException as e:

@@ -1,3 +1,4 @@
+#!/usr/bin/python3
 import argparse
 import datetime
 import logging
@@ -5,9 +6,6 @@ import apache_beam as beam
 from beam_nuggets.io import relational_db
 from apache_beam.options.pipeline_options import GoogleCloudOptions, PipelineOptions, SetupOptions
 import simplejson as json
-import google.cloud.logging
-client = google.cloud.logging.Client()
-client.setup_logging()
 
 
 class UserOptions(PipelineOptions):
@@ -23,8 +21,7 @@ class UserOptions(PipelineOptions):
 
 
 def load_db_schema():
-    import os
-    path = 'database_table_list.json' if os.name == 'nt' else '/home/gcp_user/database_table_list.json'
+    path = '/home/gcp_user/database_table_list.json'
 
     with open(path) as json_file:
         return json.load(json_file)
@@ -160,9 +157,9 @@ def publish_to_pubsub(element, project, dest_dataset, table, etl_region, topic):
     import logging
     from google.cloud import pubsub_v1
     logging.getLogger().setLevel(logging.INFO)
-    logging.info("Sending message to PubSub: `projects/{}/topics/{}`".format(project, topic))
+    logging.info("Sending message to PubSub: `projects/{}/topics/{}-{}`".format(project, topic, etl_region))
     publisher = pubsub_v1.PublisherClient()
-    topic_path = publisher.topic_path(project, topic)
+    topic_path = publisher.topic_path(project, '{}-{}'.format(topic, etl_region))
     message = {
         'project': project,
         'dest_dataset': dest_dataset,
@@ -178,9 +175,9 @@ def publish_to_cleanup_pubsub(project, etl_region,  topic):
     import logging
     from google.cloud import pubsub_v1
     logging.getLogger().setLevel(logging.INFO)
-    logging.info("Sending message to PubSub: `projects/{}/topics/{}`".format(project, topic))
+    logging.info("Sending message to PubSub: `projects/{}/topics/{}-{}`".format(project, topic, etl_region))
     publisher = pubsub_v1.PublisherClient()
-    topic_path = publisher.topic_path(project, topic)
+    topic_path = publisher.topic_path(project, '{}-{}'.format(topic, etl_region))
     message = {
         'project': project,
         'etl_region': etl_region
