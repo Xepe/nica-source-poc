@@ -6,7 +6,7 @@
             { "name" : "billing_profile" },
             { "name" : "coupon" },
             { "name" : "user_coupon" },
-            { "name" : "credit_transactions" },
+            { "name" : "transactions" },
             { "name" : "payout_method" }
         ]
     },
