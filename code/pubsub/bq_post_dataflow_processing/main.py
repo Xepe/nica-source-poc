@@ -72,6 +72,8 @@ def create_schema_management_table_if_not_exits(bigquery_client, dataset_id):
 
 # get any table schema from BigQuery
 def get_table_schema(bigquery_client, dataset_id, table_id):
+    if not exists_table(bigquery_client, dataset_id, table_id):
+        return None
     dataset = bigquery_client.get_dataset(dataset_id)
     table_ref = dataset.table(table_id)
     table = bigquery_client.get_table(table_ref)
@@ -154,12 +156,10 @@ def manage_table_schemas(bigquery_client, dataset_id, table_id):
 
 # remove staging tables
 def remove_staging_table(bigquery_client, project_id, dataset_id, table_id):
-    try:
+    if exists_table(bigquery_client, dataset_id, '{}_staging'.format(table_id)):
         staging_table = bigquery_client.get_table('{}.{}.{}_staging'.format(project_id, dataset_id, table_id))
         logging.info('Deleting staging table: `{}`'.format(staging_table.table_id))
         bigquery_client.delete_table(staging_table)
-    except Exception as e:
-        pass  # staging table doesn't exist
 
 
 # deduce the schema using the entire json file (return the BigQuery Schema)
@@ -178,9 +178,6 @@ def deduce_schema(blob):
 
 # save blobs to staging tables
 def save_blob_to_bigquery_staging_table(bigquery_client, project_id, dataset_id, table_id, blob, etl_region, schema=None, computed_schema=False):
-    # remove staging table if exists
-    remove_staging_table(bigquery_client, project_id, dataset_id, table_id)
-
     dataset_ref = bigquery_client.dataset(dataset_id)
     dataset = bigquery_client.get_dataset(dataset_ref.dataset_id)
 
@@ -311,13 +308,17 @@ def main(event, context):
 
     for blob in blobs:
         try:
-            current_schema = None
-            if exists_table(bigquery_client, dataset, table):
-                current_schema = get_table_schema(bigquery_client, dataset, table)
+            # remove staging table if exists
+            remove_staging_table(bigquery_client, project, dataset, table)
+
+            # get current schema (If table doesn't exist  return None)
+            current_schema = get_table_schema(bigquery_client, dataset, table)
 
             # save blob to BigQuery staging table if json is not empty
             if blob.size > 0:
                 save_blob_to_bigquery_staging_table(bigquery_client, project, dataset, table, blob, etl_region, current_schema)
+            else:
+                logging.info("Skipping table: `{}`. Table is empty".format(table))
 
             # check schema and refresh table if staging table was created (json is not empty)
             if exists_table(bigquery_client, dataset, '{}_staging'.format(table)):
