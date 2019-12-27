@@ -162,13 +162,29 @@ def remove_staging_table(bigquery_client, project_id, dataset_id, table_id):
         bigquery_client.delete_table(staging_table)
 
 
+# check schema for duplicate fields
+def check_schema_for_duplicate_keys(schema, errors, parent=None):
+    import collections
+    duplicate_fields = [item for item, count in collections.Counter([field['name'].lower() for field in schema]).items() if count > 1]
+    for duplicate_field in duplicate_fields:
+        originals_fields = [f['name'] for f in schema if f['name'].lower() == duplicate_field]
+        error_message = 'Duplicate field in `{}`. (Fields must be case insensitive). Fields `{}`  are not valid'.format(parent, originals_fields) if parent is not None \
+            else 'Duplicate field (Fields must be case insensitive). Fields `{}` are not valid'.format(originals_fields)
+        errors.append(error_message)
+
+    for field in schema:
+        if field['type'] == 'RECORD':
+            check_schema_for_duplicate_keys(field['fields'], errors, field['name'])
+
+
 # deduce the schema using the entire json file (return the BigQuery Schema)
 def deduce_schema(blob):
     schema_result = []
-    generator = SchemaGenerator(keep_nulls=True,quoted_values_are_strings=True)
+    generator = SchemaGenerator(keep_nulls=True)
     schema_map, error_logs = generator.deduce_schema(blob.download_as_string().splitlines())
+    schema = generator.flatten_schema(schema_map)
+    check_schema_for_duplicate_keys(schema, error_logs)
     if len(error_logs) == 0:
-        schema = generator.flatten_schema(schema_map)
         for item in schema:
             fields = bigquery.schema._parse_schema_resource(item) if 'fields' in item else ()
             i = bigquery.schema.SchemaField(name=item['name'], field_type=item['type'], mode=item['mode'], fields=fields)
@@ -189,15 +205,15 @@ def save_blob_to_bigquery_staging_table(bigquery_client, project_id, dataset_id,
         job_config.schema = schema
     uri = "gs://{}-staging-{}/{}".format(project_id, etl_region, blob.name)
 
-    load_job = bigquery_client.load_table_from_uri(
-        uri,
-        dataset_ref.table("{}_staging".format(table_id)),
-        location=dataset.location,
-        job_config=job_config,
-    )  # API request
-    logging.info("Starting job: `{}` to load data into staging table: `{}` to get the schema".format(load_job.job_id, '{}_staging'.format(table_id)))
-
     try:
+        load_job = bigquery_client.load_table_from_uri(
+            uri,
+            dataset_ref.table("{}_staging".format(table_id)),
+            location=dataset.location,
+            job_config=job_config,
+        )  # API request
+        logging.info("Starting job: `{}` to load data into staging table: `{}` to get the schema".format(load_job.job_id,'{}_staging'.format(table_id)))
+
         load_job.result()
         logging.info("Job finished.")
         destination_table = bigquery_client.get_table(dataset_ref.table('{}_staging'.format(table_id)))
@@ -266,7 +282,7 @@ def publish_to_pubsub(project, dest_dataset, table, etl_region, topic, details=N
 
     if details is not None:
         errors = [str(e) for e in details]
-        message['details'] = ",".join(errors)
+        message['details'] = "<|>".join(errors)
 
     data = json.dumps(message).encode('utf-8')
     future = publisher.publish(topic_path, data=data)
@@ -333,8 +349,6 @@ def main(event, context):
 
         except BadBlobSchemaException as e:
             logging.error("Error loading blob: `{}` to staging table: `{}.{}_staging`".format(blob.name, dataset, table))
-            for error in e.args[0]:
-                logging.error(error)
 
             logging.info("Sending pubsub message to move blob: `{}` to errors folder".format(blob.name))
             # send pubsub message to notify error
@@ -350,9 +364,9 @@ if __name__ == '__main__':
     # go to https://www.base64encode.org/
     # encode json object. See example
 
-    # {"project": "taxfyle-qa-data", "dest_dataset": "data_warehouse_us", "table" : "notifications", "etl_region": "us"}
+    # {"project": "taxfyle-staging-data", "dest_dataset": "data_warehouse_us", "table" : "job_event", "etl_region": "us"}
     event = {
-        'data': 'eyJwcm9qZWN0IjogInRheGZ5bGUtcWEtZGF0YSIsICJkZXN0X2RhdGFzZXQiOiAiZGF0YV93YXJlaG91c2VfdXMiLCAidGFibGUiIDogIm5vdGlmaWNhdGlvbnMiLCAiZXRsX3JlZ2lvbiI6ICJ1cyJ9'
+        'data': 'eyJwcm9qZWN0IjogInRheGZ5bGUtc3RhZ2luZy1kYXRhIiwgImRlc3RfZGF0YXNldCI6ICJkYXRhX3dhcmVob3VzZV91cyIsICJ0YWJsZSIgOiAiam9iX2V2ZW50IiwgImV0bF9yZWdpb24iOiAidXMifQ=='
     }
 
     context = {}

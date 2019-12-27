@@ -79,9 +79,9 @@ if __name__ == '__main__':
     # go to https://www.base64encode.org/
     # encode json object. See example
 
-    # {"project": "taxfyle-staging-data", "dest_dataset": "data_warehouse_aus", "table" : "tag", "etl_region": "aus"}
+    # {"project": "taxfyle-staging-data", "dest_dataset": "data_warehouse_us", "table" : "workspace_domain", "etl_region": "us"}
     event ={
-        'data': 'eyJwcm9qZWN0IjogInRheGZ5bGUtc3RhZ2luZy1kYXRhIiwgImRlc3RfZGF0YXNldCI6ICJkYXRhX3dhcmVob3VzZV9hdXMiLCAidGFibGUiIDogInRhZyIsICJldGxfcmVnaW9uIjogImF1cyJ9'
+        'data': 'eyJwcm9qZWN0IjogInRheGZ5bGUtc3RhZ2luZy1kYXRhIiwgImRlc3RfZGF0YXNldCI6ICJkYXRhX3dhcmVob3VzZV91cyIsICJ0YWJsZSIgOiAid29ya3NwYWNlX2RvbWFpbiIsICJldGxfcmVnaW9uIjogInVzIn0='
     }
 
     context = {}

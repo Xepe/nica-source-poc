@@ -47,8 +47,8 @@
     {
         "database" : "legends",
         "tables" : [
-            { "name" : "legend" }
-
+            { "name" : "legend" },
+            { "name" : "legend_version" }
         ]
     },
     {

@@ -16,7 +16,7 @@ def get_blobs_in_staging(storage_client, project_id, etl_region, table_id):
 def move_blobs_to_error_folder(storage_client, project_id, etl_region, table_id):
     # read all table blobs from staging
     blobs = get_blobs_in_staging(storage_client, project_id, etl_region, table_id)
-    now = datetime.now().isoformat()
+    now = datetime.now().replace(microsecond=0, second= 0, minute = 0).isoformat()
     for blob in blobs:
         source_bucket_name = '{}-staging-{}'.format(project_id, etl_region)
         dest_bucket_name = '{}-datalake-{}'.format(project_id, etl_region)
@@ -87,9 +87,13 @@ def main(event, context):
     dataset = message['dest_dataset']
     table = message['table']
     etl_region = message['etl_region']
-    details = message['details'].split(",")
+    details = message['details'].split("<|>")
 
     storage_client = storage.Client(project=project)
+
+    # log errors
+    for detail in details:
+        logging.error('Error loading table: `{}` to dataset: `{}` . Detail: `{}`'.format(table, dataset, detail))
 
     # move failed blobs
     move_blobs_to_error_folder(storage_client, project, etl_region, table)

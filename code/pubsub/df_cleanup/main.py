@@ -19,6 +19,11 @@ def cleanup_binaries(storage_client, project_id, etl_region):
     delete_folder(storage_client, '{}-code'.format(project_id), 'binaries-{}/'.format(etl_region))
 
 
+def cleanup_staging_temporal_files(storage_client, project_id, etl_region):
+    blobs = storage_client.list_blobs('{}-staging-{}'.format(project_id, etl_region), prefix='beam-temp-')
+    delete_blobs(blobs)
+
+
 # --------------------------------------- main ---------------------------------------------------------------
 def main(event, context):
     """Triggered from a message on a Cloud Pub/Sub topic.
@@ -45,6 +50,7 @@ def main(event, context):
     try:
         logging.info("Cleanup binaries for project: `{}` region: `{}` ".format(project, etl_region))
         cleanup_binaries(storage_client, project, etl_region)
+        cleanup_staging_temporal_files(storage_client, project, etl_region)
     except Exception as e:
         logging.error("Unknown error. Details: {}".format(e))
 

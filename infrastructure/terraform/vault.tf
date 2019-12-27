@@ -15,14 +15,14 @@ data "vault_generic_secret" "db_creds" {
   path = "${var.cluster_name}/db_creds"
 }
 
-# required roles in GCP for vault service account
-# BigQuery Data Owner
-# Cloud Functions Admin
-# Compute Instance Admin (beta)
-# Service Account Admin
-# Service Account User
-# Monitoring Admin
-# Pub/Sub Editor
-# Project IAM Admin
-# Storage Admin
-# Storage Object Viewer
+# required roles in GCP for vault service account in data_project
+# BigQuery Data Owner               "roles/bigquery.dataOwner"
+# Cloud Functions Admin             "roles/cloudfunctions.admin"
+# Compute Instance Admin (beta)     "roles/compute.instanceAdmin"
+# Service Account Admin             "roles/iam.serviceAccountAdmin"
+# Service Account User              "roles/iam.serviceAccountUser"              
+# Monitoring Admin                  "roles/monitoring.admin"                    
+# Pub/Sub Editor                    "roles/pubsub.editor"                       
+# Project IAM Admin                 "roles/resourcemanager.projectIamAdmin"
+# Storage Admin                     "roles/storage.admin"
+# Storage Object Viewer             "roles/storage.objectViewer"
