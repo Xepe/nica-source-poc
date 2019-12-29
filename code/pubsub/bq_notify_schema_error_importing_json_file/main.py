@@ -35,7 +35,7 @@ def send_notification_email(project_id, dataset_id, etl_region, table, details):
     html_body = """
     <html>
     <hr />
-    <h2>Error importing json file to BigQuery</h2>
+    <h2>Schema errors importing json file to BigQuery</h2>
     <h3>Summary</h3>
     <h3>Project:</h3>
     <p style="padding-left: 30px;">{}</p>
@@ -58,14 +58,14 @@ def send_notification_email(project_id, dataset_id, etl_region, table, details):
     postmark.emails.send(
         From=postmark_from,
         To=postmark_to,
-        Subject='Error importing data from table: {} to BigQuery'.format(table),
+        Subject='Schema error(s) importing data to BigQuery table: {}'.format(table),
         HtmlBody=html_body
     )
 
 
 # --------------------------------------- main ---------------------------------------------------------------
 def main(event, context):
-    """Triggered from a message on a Cloud Pub/Sub topic 'bq-error-importing-json-file'
+    """Triggered from a message on a Cloud Pub/Sub topic 'bq-schema-error-importing-json-file'
         Args:
              event (dict): Event payload.
              context (google.cloud.functions.Context): Metadata for the event.
@@ -93,7 +93,7 @@ def main(event, context):
 
     # log errors
     for detail in details:
-        logging.error('Error loading table: `{}` to dataset: `{}` . Detail: `{}`'.format(table, dataset, detail))
+        logging.error('Schema error(s) loading table: `{}` to dataset: `{}` . Detail: `{}`'.format(table, dataset, detail))
 
     # move failed blobs
     move_blobs_to_error_folder(storage_client, project, etl_region, table)

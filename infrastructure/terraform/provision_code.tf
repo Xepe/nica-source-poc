@@ -21,26 +21,45 @@ resource "google_storage_bucket_object" "bq-post-dataflow-processing-zip" {
 }
 
 
-# notify_error_importing_json_file
+# notify_schema_error_importing_json_file
 locals {
-  bq_notify_error_importing_json_file_filename = "bq_notify_error_importing_json_file_function_${substr(lower(replace(base64encode(data.archive_file.bq-notify-error-importing-json-file.output_md5), "=", "")), 0, 15)}.zip"
+  bq_notify_schema_error_importing_json_file_filename = "bq_notify_schema_error_importing_json_file_function_${substr(lower(replace(base64encode(data.archive_file.bq-notify-schema-error-importing-json-file.output_md5), "=", "")), 0, 15)}.zip"
 }
 
-# Zip Python bq_notify_error_importing_json_file folder
-data "archive_file" "bq-notify-error-importing-json-file" {
+# Zip Python bq_notify_schema_error_importing_json_file folder
+data "archive_file" "bq-notify-schema-error-importing-json-file" {
   type        = "zip"
-  source_dir  = "./../../code/pubsub/bq_notify_error_importing_json_file"
-  output_path = ".${replace(path.module, path.root, "")}/code/bq_notify_error_importing_json_file.zip"
+  source_dir  = "./../../code/pubsub/bq_notify_schema_error_importing_json_file"
+  output_path = ".${replace(path.module, path.root, "")}/code/bq_notify_schema_error_importing_json_file.zip"
 }
 
 # Provisioning notify_error_importing_json_file to bucket
-resource "google_storage_bucket_object" "bq-notify-error-importing-json-file-zip" {
-  name       = local.bq_notify_error_importing_json_file_filename
-  source     = ".${replace(path.module, path.root, "")}/code/bq_notify_error_importing_json_file.zip"
+resource "google_storage_bucket_object" "bq-notify-schema-error-importing-json-file-zip" {
+  name       = local.bq_notify_schema_error_importing_json_file_filename
+  source     = ".${replace(path.module, path.root, "")}/code/bq_notify_schema_error_importing_json_file.zip"
   bucket     = google_storage_bucket.code-bucket.name
   depends_on = [google_storage_bucket.code-bucket]
 }
 
+# notify_data_error_importing_json_file
+locals {
+  bq_notify_data_error_importing_json_file_filename = "bq_notify_data_error_importing_json_file_function_${substr(lower(replace(base64encode(data.archive_file.bq-notify-data-error-importing-json-file.output_md5), "=", "")), 0, 15)}.zip"
+}
+
+# Zip Python bq_notify_data_error_importing_json_file folder
+data "archive_file" "bq-notify-data-error-importing-json-file" {
+  type        = "zip"
+  source_dir  = "./../../code/pubsub/bq_notify_data_error_importing_json_file"
+  output_path = ".${replace(path.module, path.root, "")}/code/bq_notify_data_error_importing_json_file.zip"
+}
+
+# Provisioning notify_error_importing_json_file to bucket
+resource "google_storage_bucket_object" "bq-notify-data-error-importing-json-file-zip" {
+  name       = local.bq_notify_data_error_importing_json_file_filename
+  source     = ".${replace(path.module, path.root, "")}/code/bq_notify_data_error_importing_json_file.zip"
+  bucket     = google_storage_bucket.code-bucket.name
+  depends_on = [google_storage_bucket.code-bucket]
+}
 
 # bq_create_views_and_cleanup
 locals {

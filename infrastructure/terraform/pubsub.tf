@@ -6,10 +6,16 @@ resource "google_pubsub_topic" "bq-post-dataflow-processing-topic" {
   name  = "bq-post-dataflow-processing-${lookup(var.regions[count.index], "name")}"
 }
 
-#topic bq-error-importing-json-file-topic
-resource "google_pubsub_topic" "bq-error-importing-json-file-topic" {
+#topic bq-schema-error-importing-json-file-topic
+resource "google_pubsub_topic" "bq-schema-error-importing-json-file-topic" {
   count = length(var.regions)
-  name  = "bq-error-importing-json-file-${lookup(var.regions[count.index], "name")}"
+  name  = "bq-schema-error-importing-json-file-${lookup(var.regions[count.index], "name")}"
+}
+
+#topic bq-data-error-importing-json-file-topic
+resource "google_pubsub_topic" "bq-data-error-importing-json-file-topic" {
+  count = length(var.regions)
+  name  = "bq-data-error-importing-json-file-${lookup(var.regions[count.index], "name")}"
 }
 
 #topic bq-create-views-and-cleanup-topic
