@@ -33,6 +33,8 @@ variable "regions" {
     region                    = string
     cloud_function_region     = string
     bigquery_dataset_location = string
+    dataflow_region           = string
+    dataflow_zone             = string 
   }))
 }
 

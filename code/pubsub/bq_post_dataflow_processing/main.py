@@ -2,7 +2,7 @@ import base64
 import json
 from google.cloud import storage
 from google.cloud import bigquery
-from google.cloud.bigquery import TimePartitioning, TimePartitioningType, WriteDisposition, SchemaUpdateOption
+from google.cloud.bigquery import TimePartitioning, TimePartitioningType, WriteDisposition
 import logging
 from datetime import datetime
 from google.cloud.exceptions import GoogleCloudError
@@ -13,12 +13,14 @@ class BadBlobSchemaException(Exception):
     pass
 
 
-bq_error_importing_json_file_topic = 'bq-error-importing-json-file'
+bq_schema_error_importing_json_file_topic = 'bq-schema-error-importing-json-file'
+bq_data_error_importing_json_file_topic = 'bq-data-error-importing-json-file'
 bq_create_views_and_cleanup = 'bq-create-views-and-cleanup'
 
 schema_history_table_name = 'schema_history'
 
 
+# ------------------------------------storage functions--------------------------------------------------------------
 def get_blobs_in_staging(storage_client, project_id, etl_region, table):
     bucket_name = '{}-staging-{}'.format(project_id, etl_region)
     blobs = list(storage_client.list_blobs(bucket_name, prefix='{}.jsonl'.format(table)))
@@ -71,6 +73,8 @@ def create_schema_management_table_if_not_exits(bigquery_client, dataset_id):
 
 # get any table schema from BigQuery
 def get_table_schema(bigquery_client, dataset_id, table_id):
+    if not exists_table(bigquery_client, dataset_id, table_id):
+        return None
     dataset = bigquery_client.get_dataset(dataset_id)
     table_ref = dataset.table(table_id)
     table = bigquery_client.get_table(table_ref)
@@ -153,21 +157,45 @@ def manage_table_schemas(bigquery_client, dataset_id, table_id):
 
 # remove staging tables
 def remove_staging_table(bigquery_client, project_id, dataset_id, table_id):
-    try:
+    if exists_table(bigquery_client, dataset_id, '{}_staging'.format(table_id)):
         staging_table = bigquery_client.get_table('{}.{}.{}_staging'.format(project_id, dataset_id, table_id))
         logging.info('Deleting staging table: `{}`'.format(staging_table.table_id))
         bigquery_client.delete_table(staging_table)
-    except Exception as e:
-        pass  # staging table doesn't exist
+
+
+# check schema for duplicate fields
+def check_schema_for_duplicate_keys(schema, errors, parent=None):
+    import collections
+    duplicate_fields = [item for item, count in collections.Counter([field['name'].lower() for field in schema]).items() if count > 1]
+    for duplicate_field in duplicate_fields:
+        originals_fields = [f['name'] for f in schema if f['name'].lower() == duplicate_field]
+        error_message = 'Duplicate field in `{}`. (Fields must be case insensitive). Fields `{}`  are not valid'.format(parent, originals_fields) if parent is not None \
+            else 'Duplicate field (Fields must be case insensitive). Fields `{}` are not valid'.format(originals_fields)
+        errors.append(error_message)
+
+    for field in schema:
+        if field['type'] == 'RECORD':
+            check_schema_for_duplicate_keys(field['fields'], errors, field['name'])
+
+# convert all fields to Nullable to support fields not present in Json objects
+def convert_required_to_nullable(schema):
+    for field in schema:
+        if 'fields' in field:
+            field['fields'] = convert_required_to_nullable(field['fields'])
+
+        if field['mode'] == 'REQUIRED':
+            field['mode'] = 'NULLABLE'
+    return schema
 
 
 # deduce the schema using the entire json file (return the BigQuery Schema)
 def deduce_schema(blob):
     schema_result = []
-    generator = SchemaGenerator(keep_nulls=True,quoted_values_are_strings=True)
+    generator = SchemaGenerator(keep_nulls=True, sanitize_names=True, debugging_interval=5000)
     schema_map, error_logs = generator.deduce_schema(blob.download_as_string().splitlines())
+    schema = convert_required_to_nullable(generator.flatten_schema(schema_map))
+    check_schema_for_duplicate_keys(schema, error_logs)
     if len(error_logs) == 0:
-        schema = generator.flatten_schema(schema_map)
         for item in schema:
             fields = bigquery.schema._parse_schema_resource(item) if 'fields' in item else ()
             i = bigquery.schema.SchemaField(name=item['name'], field_type=item['type'], mode=item['mode'], fields=fields)
@@ -177,46 +205,46 @@ def deduce_schema(blob):
 
 # save blobs to staging tables
 def save_blob_to_bigquery_staging_table(bigquery_client, project_id, dataset_id, table_id, blob, etl_region, schema=None, computed_schema=False):
-    # remove staging table if exists
-    remove_staging_table(bigquery_client, project_id, dataset_id, table_id)
+    row_count = blob.download_as_string().splitlines().__len__()
 
     dataset_ref = bigquery_client.dataset(dataset_id)
     dataset = bigquery_client.get_dataset(dataset_ref.dataset_id)
 
     job_config = bigquery.LoadJobConfig()
     job_config.source_format = bigquery.SourceFormat.NEWLINE_DELIMITED_JSON
-    # job_config.schema_update_options = [SchemaUpdateOption.ALLOW_FIELD_ADDITION] #  ['ALLOW_FIELD_ADDITION']
+
     if schema is None:
         job_config.autodetect = True
     else:
         job_config.schema = schema
+        job_config.max_bad_records = row_count
+
     uri = "gs://{}-staging-{}/{}".format(project_id, etl_region, blob.name)
 
-    load_job = bigquery_client.load_table_from_uri(
-        uri,
-        dataset_ref.table("{}_staging".format(table_id)),
-        location=dataset.location,
-        job_config=job_config,
-    )  # API request
-    logging.info("Starting job: `{}` to load data into staging table: `{}` to get the schema".format(load_job.job_id, '{}_staging'.format(table_id)))
-
     try:
+        load_job = bigquery_client.load_table_from_uri(
+            uri,
+            dataset_ref.table("{}_staging".format(table_id)),
+            location=dataset.location,
+            job_config=job_config,
+        )  # API request
+        logging.info("Starting job: `{}` to load data into staging table for: `{}`.".format(load_job.job_id,table_id))
         load_job.result()
-        logging.info("Job finished.")
-        destination_table = bigquery_client.get_table(dataset_ref.table('{}_staging'.format(table_id)))
-        logging.info("Loaded `{}` rows into staging table: `{}`.".format(destination_table.num_rows, table_id))
+        logging.info("Job `{}` finished. inserting rows into staging table for: `{}`.".format(load_job.job_id, table_id))
     except GoogleCloudError as e:
+        logging.info("Job: `{}` failed inserting rows into staging table for: `{}`".format(load_job.job_id, table_id))
+
         if schema is not None:
             if not computed_schema:
                 save_blob_to_bigquery_staging_table(bigquery_client, project_id, dataset_id, table_id, blob, etl_region)
             else:
-                BadBlobSchemaException(e.errors)
+                raise BadBlobSchemaException(e.errors)
         else:
-            logging.warning("Autodetection schema failed for table: `{}`. Details: {}".format(table_id, e))
-            logging.info("Schema will be computed using the entire file: `{}`".format(blob.name))
+            logging.warning("Autodetection schema failed in staging table for: `{}`. Details: {}".format(table_id, e))
+            logging.info("Table schema will be computed using the entire file: `{}`".format(blob.name))
             schema, errors = deduce_schema(blob)
             if len(errors) == 0:
-                logging.info("Schema already computed for table `{}`".format(table_id))
+                logging.info("Table schema already computed for table `{}`".format(table_id))
                 save_blob_to_bigquery_staging_table(bigquery_client, project_id, dataset_id, table_id, blob, etl_region, schema=schema, computed_schema=True)
             else:
                 raise BadBlobSchemaException(errors)
@@ -224,6 +252,7 @@ def save_blob_to_bigquery_staging_table(bigquery_client, project_id, dataset_id,
 
 # save blob to current table
 def save_blob_to_bigquery_current_table(bigquery_client, project_id, dataset_id, table_id, blob, etl_region, schema):
+    row_count = blob.download_as_string().splitlines().__len__()
 
     dataset_ref = bigquery_client.dataset(dataset_id)
     dataset = bigquery_client.get_dataset(dataset_ref.dataset_id)
@@ -232,6 +261,7 @@ def save_blob_to_bigquery_current_table(bigquery_client, project_id, dataset_id,
     job_config.source_format = bigquery.SourceFormat.NEWLINE_DELIMITED_JSON
     job_config.write_disposition = WriteDisposition.WRITE_TRUNCATE
     job_config.schema = schema
+    job_config.max_bad_records = row_count
     uri = "gs://{}-staging-{}/{}".format(project_id, etl_region, blob.name)
 
     load_job = bigquery_client.load_table_from_uri(
@@ -244,9 +274,14 @@ def save_blob_to_bigquery_current_table(bigquery_client, project_id, dataset_id,
 
     try:
         load_job.result()
-        logging.info("Job `{}` finished. Data loaded to version table: `{}`.".format(load_job.job_id, table_id))
         destination_table = bigquery_client.get_table(dataset_ref.table(table_id))
-        logging.info("There are `{}` rows in table: `{}`.".format(destination_table.num_rows, table_id))
+        if load_job.errors is not None and len(load_job.errors) > 0:
+            error_text = "Job `{}` finished with error(s): `{}/{}` rows were inserted into table: `{}`.".format(load_job.job_id, destination_table.num_rows, row_count, table_id)
+            logging.error(error_text)
+            load_job.errors.insert(0, error_text)
+            publish_to_pubsub(project_id, dataset_id, table_id, etl_region, bq_data_error_importing_json_file_topic, load_job.errors)
+        else:
+            logging.info("Job `{}` finished. `{}/{}` rows were inserted into staging table: `{}`.".format(load_job.job_id, destination_table.num_rows, row_count, table_id))
     except GoogleCloudError as e:
         logging.error("Error loading blob: `{}` to table: `{}.{}`. Details: {}".format(blob.name, dataset, table_id, e))
 
@@ -256,9 +291,9 @@ def publish_to_pubsub(project, dest_dataset, table, etl_region, topic, details=N
     import logging
     from google.cloud import pubsub_v1
     logging.getLogger().setLevel(logging.INFO)
-    logging.info("Sending message to PubSub: `projects/{}/topics/{}`".format(project, topic))
+    logging.info("Sending message to PubSub: `projects/{}/topics/{}-{}`".format(project, topic, etl_region))
     publisher = pubsub_v1.PublisherClient()
-    topic_path = publisher.topic_path(project, topic)
+    topic_path = publisher.topic_path(project, '{}-{}'.format(topic, etl_region))
 
     message = {
         'project': project,
@@ -269,7 +304,7 @@ def publish_to_pubsub(project, dest_dataset, table, etl_region, topic, details=N
 
     if details is not None:
         errors = [str(e) for e in details]
-        message['details'] = ",".join(errors)
+        message['details'] = "<|>".join(errors)
 
     data = json.dumps(message).encode('utf-8')
     future = publisher.publish(topic_path, data=data)
@@ -311,30 +346,33 @@ def main(event, context):
 
     for blob in blobs:
         try:
-            current_schema = None
-            if exists_table(bigquery_client, dataset, table):
-                current_schema = get_table_schema(bigquery_client, dataset, table)
+            # remove staging table if exists
+            remove_staging_table(bigquery_client, project, dataset, table)
 
-            # save blob to bigquery staging table
-            save_blob_to_bigquery_staging_table(bigquery_client, project, dataset, table, blob, etl_region, current_schema)
+            # get current schema (If table doesn't exist  return None)
+            current_schema = get_table_schema(bigquery_client, dataset, table)
 
-            # analyze schemas
-            schema, version = manage_table_schemas(bigquery_client, dataset, table)
+            # save blob to BigQuery staging table if json is not empty
+            if blob.size > 0:
+                save_blob_to_bigquery_staging_table(bigquery_client, project, dataset, table, blob, etl_region, current_schema)
+            else:
+                logging.info("Skipping table: `{}`. Table is empty".format(table))
 
-            # save blob to big query using last table_version
-            save_blob_to_bigquery_current_table(bigquery_client, project, dataset, table, blob, etl_region, schema)
+            # check schema history
+            if exists_table(bigquery_client, dataset, '{}_staging'.format(table)):
+                # analyze schemas
+                schema, version = manage_table_schemas(bigquery_client, dataset, table)
 
-            # send pubsub message to refresh table views
+                # save blob to big query using last table_version
+                save_blob_to_bigquery_current_table(bigquery_client, project, dataset, table, blob, etl_region, schema)
+
+            # send pubsub message to refresh table views and cleanup
             publish_to_pubsub(project, dataset, table, etl_region, bq_create_views_and_cleanup)
 
         except BadBlobSchemaException as e:
-            logging.error("Error loading blob: `{}` to staging table: `{}.{}_staging`".format(blob.name, dataset, table))
-            for error in e.args[0]:
-                logging.error(error)
-
-            logging.info("Sending pubsub message to move blob: `{}` to errors folder".format(blob.name))
+            logging.error("Schema error(s) detected loading blob: `{}` to staging table: `{}.{}_staging`. Sending pubsub message to move blob to errors folder".format(blob.name, dataset, table))
             # send pubsub message to notify error
-            publish_to_pubsub(project, dataset, table, etl_region, bq_error_importing_json_file_topic, e.args[0])
+            publish_to_pubsub(project, dataset, table, etl_region, bq_schema_error_importing_json_file_topic, e.args[0])
 
         except Exception as e:
             logging.error("Unknown error. Details: {}".format(e))
@@ -346,9 +384,9 @@ if __name__ == '__main__':
     # go to https://www.base64encode.org/
     # encode json object. See example
 
-    # {"project": "taxfyle-qa-data", "dest_dataset": "data_warehouse_us", "table" : "notifications", "etl_region": "us"}
+    # {"project": "taxfyle-staging-data", "dest_dataset": "data_warehouse_us", "table" : "billing_method", "etl_region": "us"}
     event = {
-        'data': 'eyJwcm9qZWN0IjogInRheGZ5bGUtcWEtZGF0YSIsICJkZXN0X2RhdGFzZXQiOiAiZGF0YV93YXJlaG91c2VfdXMiLCAidGFibGUiIDogIm5vdGlmaWNhdGlvbnMiLCAiZXRsX3JlZ2lvbiI6ICJ1cyJ9'
+        'data': 'eyJwcm9qZWN0IjogInRheGZ5bGUtc3RhZ2luZy1kYXRhIiwgImRlc3RfZGF0YXNldCI6ICJkYXRhX3dhcmVob3VzZV91cyIsICJ0YWJsZSIgOiAiYmlsbGluZ19tZXRob2QiLCAiZXRsX3JlZ2lvbiI6ICJ1cyJ9'
     }
 
     context = {}

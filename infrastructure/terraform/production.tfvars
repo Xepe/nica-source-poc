@@ -1,7 +1,7 @@
 # infrastructure
-cluster_name             = "staging"
-main_project             = "staging-233617"
-data_project             = "taxfyle-staging-data"
+cluster_name             = "production"
+main_project             = "production-235814"
+data_project             = "taxfyle-production-data"
 main_project_sub_network = "default-kubes"
 
 # data destination Big Query dataset

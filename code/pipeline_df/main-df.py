@@ -1,3 +1,4 @@
+#!/usr/bin/python3
 import argparse
 import datetime
 import logging
@@ -5,9 +6,6 @@ import apache_beam as beam
 from beam_nuggets.io import relational_db
 from apache_beam.options.pipeline_options import GoogleCloudOptions, PipelineOptions, SetupOptions
 import simplejson as json
-import google.cloud.logging
-client = google.cloud.logging.Client()
-client.setup_logging()
 
 
 class UserOptions(PipelineOptions):
@@ -23,8 +21,7 @@ class UserOptions(PipelineOptions):
 
 
 def load_db_schema():
-    import os
-    path = 'database_table_list.json' if os.name == 'nt' else '/home/gcp_user/database_table_list.json'
+    path = '/home/gcp_user/database_table_list.json'
 
     with open(path) as json_file:
         return json.load(json_file)
@@ -46,22 +43,24 @@ def fix_jsons(element):
     def has_valid_fields(obj):
         result = True
         for key, value in obj.items():
-            if key[0].isnumeric() or '.' in key:
+            if key[0].isnumeric() or '.' in key or '-' in key:
                 result = False
                 break
         return result
 
     def fix_invalid_key_name(obj):
+        obj_result = {}
         for key, value in obj.items():
-            # fix numeric key_names
-            if key[0].isnumeric():
-                del obj[key]
-                obj['_{}'.format(key)] = value
-            # fix key containing dots
-            if '.' in key:
-                del obj[key]
-                obj['{}'.format(key.replace('.', '_'))] = value
-        return obj
+            key_result = key
+            if key_result[0].isnumeric():
+                key_result = '_{}'.format(key)
+            if '.' in key_result:
+                key_result = '{}'.format(key_result.replace('.', '_'))
+            if '-' in key_result:
+                key_result = '{}'.format(key_result.replace('-', '_'))
+            obj_result[key_result] = value
+
+        return obj_result
 
     def convert_invalid_json_to_valid_json(parent, key, value):
         if isinstance(value, list):
@@ -91,51 +90,99 @@ def fix_other_schema_issues(element, table_name):
         else:
             return str(value)
 
-    def analyze_field(parent, key, value, level):
+    def analyze_field(parent, key, value, parent_path):
+        path = '{}__{}'.format(parent_path, key) if parent_path else '{}'.format(key)
+
         if isinstance(value, list):
             for item in value:
                 if isinstance(item, dict) or isinstance(item, list):
-                    analyze_field(parent, key, item, level + 1)
+                    analyze_field(parent, key, item, parent_path)
 
         if isinstance(value, dict):
             for k, v in value.items():
-                analyze_field(value, k, v, level + 1)
+                analyze_field(value, k, v, path)
 
-        # fix answers structure in table: job, job_event.  field: answers.answer -> to string array
-        if (table_name == 'job' and level == 1 and key == 'answers' and isinstance(value, list)) or \
-           (table_name == 'job_event' and level == 3 and key == 'answers' and isinstance(value, list)):
+        # fix 'answers' structure in table: job, job_event, notifications.  field: answers.answer -> to string array
+        if key == 'answers' and isinstance(value, list) and \
+                (
+                        (table_name == 'job' and parent_path is None) or
+                        (table_name == 'job_event' and parent_path == 'data__snapshot') or
+                        (table_name == 'notifications' and parent_path == 'context__job')
+                ):
             for answer in parent[key]:
                 new_values = []
                 if 'answer' in answer:
                     if isinstance(answer['answer'], list):
-                        for value in answer['answer']:
-                            new_values.append(convert_value_to_string(value))
+                        new_values = [convert_value_to_string(value) for value in answer['answer']]
                     else:
                         new_values.append(convert_value_to_string(answer['answer']))
 
                     answer['answer'] = new_values
 
-        # fix stripe_charges in tables: job, job_event -> remove null values from array
-        if (table_name == 'job' and level == 1 and key == 'stripe_charges' and isinstance(value, list)) or \
-           (table_name == 'job_event' and level == 3 and key == 'stripe_charges' and isinstance(value, list)):
+        # fix 'job_specs' in tables: job, job_event. field: job_spects -> to string array
+        if key == 'job_specs' and isinstance(value, list) and \
+                (
+                    (table_name == 'job' and parent_path is None) or
+                    (table_name == 'job_event' and
+                     (
+                             parent_path == 'data' or
+                             parent_path == 'data__snapshot'
+                     ))
+                ):
+            parent[key] = [str(v) for v in value]
+
+        # fix 'stripe_charges' in tables: job, job_event -> remove null values from array
+        if key == 'stripe_charges' and isinstance(value, list) and \
+                (
+                    (table_name == 'job' and parent_path is None) or
+                    (table_name == 'job_event' and parent_path == 'data__snapshot')
+                ):
             parent[key] = [i for i in value if i]
 
+        # fix 'designee' in tables: job, job_event, notifications -> to string
+        if key == 'designee' and not isinstance(value, str) and \
+                (
+                    (table_name == 'job' and parent_path == 'milestones__tasks') or
+                    (table_name == 'job_event' and parent_path == 'data__snapshot__milestones__tasks') or
+                    (table_name == 'notifications' and parent_path == 'context__job__milestones__tasks')
+                ):
+            parent[key] = convert_value_to_string(value)
+
+        # fix 'data' in tables: legend_version -> to string (remove when save to BigQuery)
+        if key == 'data' and table_name == 'legend_version' and parent_path is None:
+            parent[key] = convert_value_to_string(value)
+
+        # fix 'legend' in tables: job_event -> to string
+        if key == 'legend' and table_name == 'job_event' and parent_path == 'data__snapshot':
+            parent[key] = convert_value_to_string(value)
+
+        # fix 'legend' in tables: notifications -> to string
+        if key == 'legend' and table_name == 'notifications' and parent_path == 'context__job':
+            parent[key] = convert_value_to_string(value)
+
         # fix repeatable elements with null value
-        if (table_name == 'job' and level == 1 and (key == 'rating_received_categories' or key == 'rating_submitted_categories')) or \
-           (table_name == 'job_event' and level == 3 and (key == 'rating_received_categories' or key == 'rating_submitted_categories')):
-            if value is None:
+        if (key == 'rating_received_categories' or key == 'rating_submitted_categories') and \
+                (
+                    (table_name == 'job' and parent_path is None) or
+                    (table_name == 'job_event' and parent_path == 'data__snapshot') or
+                    (table_name == 'notifications' and parent_path == 'context__job')
+                ) and value is None:
                 parent[key] = []
 
-        # fix encrypted structure in table: message, field: content.text.encrypted -> to string to do not data loss
-        if table_name == 'message' and level == 3 and key == 'encrypted':
+        # fix 'encrypted' structure in table: message, field: content.text.encrypted -> to string to do not data loss
+        if key == 'encrypted' and table_name == 'message' and parent_path == 'content__text':
             parent[key] = str(value)
+
+        # fix 'display_name' in table notifications, field: context.sender.display_name -> to string when is array
+        if key == 'display_name' and table_name == 'notifications' and isinstance(value, list) and parent_path == 'context__sender':
+            parent[key] = str(value[0])
 
         # fix empty structs {}, they should be null
         if isinstance(parent[key], dict) and not bool(parent[key]):
             parent[key] = None
 
     for field_key, field_value in element.items():
-        analyze_field(element, field_key, field_value, 1)
+        analyze_field(element, field_key, field_value, None)
 
     return element
 
@@ -160,9 +207,9 @@ def publish_to_pubsub(element, project, dest_dataset, table, etl_region, topic):
     import logging
     from google.cloud import pubsub_v1
     logging.getLogger().setLevel(logging.INFO)
-    logging.info("Sending message to PubSub: `projects/{}/topics/{}`".format(project, topic))
+    logging.info("Sending message to PubSub: `projects/{}/topics/{}-{}`".format(project, topic, etl_region))
     publisher = pubsub_v1.PublisherClient()
-    topic_path = publisher.topic_path(project, topic)
+    topic_path = publisher.topic_path(project, '{}-{}'.format(topic, etl_region))
     message = {
         'project': project,
         'dest_dataset': dest_dataset,
@@ -178,9 +225,9 @@ def publish_to_cleanup_pubsub(project, etl_region,  topic):
     import logging
     from google.cloud import pubsub_v1
     logging.getLogger().setLevel(logging.INFO)
-    logging.info("Sending message to PubSub: `projects/{}/topics/{}`".format(project, topic))
+    logging.info("Sending message to PubSub: `projects/{}/topics/{}-{}`".format(project, topic, etl_region))
     publisher = pubsub_v1.PublisherClient()
-    topic_path = publisher.topic_path(project, topic)
+    topic_path = publisher.topic_path(project, '{}-{}'.format(topic, etl_region))
     message = {
         'project': project,
         'etl_region': etl_region
