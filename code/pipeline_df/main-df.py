@@ -184,6 +184,10 @@ def fix_other_schema_issues(element, table_name):
             if isinstance(value, str):
                 parent[key] = [value]
 
+        # fix field 'cpa_years_experience' in table workspace_member
+        if key == 'cpa_years_experience' and table_name == 'workspace_member' and parent_path == 'workspace_metadata'
+            parent[key] = str(value)
+
         # fix fields 'utm_medium, utm_source, utm_campaign' in table job
         if (key == 'utm_medium' or key == 'utm_source' or key == 'utm_campaign') and table_name == 'job' and parent_path == 'members__user__referrer_meta':
             if not value or value is None:
