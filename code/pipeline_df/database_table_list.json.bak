@@ -40,7 +40,8 @@
     {
         "database" : "jobs",
         "tables" : [
-            { "name" : "job" }
+            { "name" : "job" },
+            { "name" : "job_event" }
         ]
     },
     {
@@ -57,6 +58,12 @@
             { "name" : "conversation_participant" },
             { "name" : "message" },
             { "name" : "message_status" }
+        ]
+    },
+    {
+        "database" : "notifications",
+        "tables" : [
+            { "name" : "notifications" }
         ]
     }
 ]
