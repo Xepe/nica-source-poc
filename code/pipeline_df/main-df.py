@@ -177,6 +177,20 @@ def fix_other_schema_issues(element, table_name):
         if key == 'display_name' and table_name == 'notifications' and isinstance(value, list) and parent_path == 'context__sender':
             parent[key] = str(value[0])
 
+        # fix fields 'utm_medium, utm_source, utm_campaign' in table workspace_member
+        if (key == 'utm_medium' or key == 'utm_source' or key == 'utm_campaign') and table_name == 'workspace_member' and (parent_path == 'referrer_metadata' or parent_path == 'workspace_metadata__referrerMeta'):
+            if not value or value is None:
+                parent[key] = []
+            if isinstance(value, str):
+                parent[key] = [value]
+
+        # fix fields 'utm_medium, utm_source, utm_campaign' in table job
+        if (key == 'utm_medium' or key == 'utm_source' or key == 'utm_campaign') and table_name == 'job' and parent_path == 'members__user__referrer_meta':
+            if not value or value is None:
+                parent[key] = []
+            if isinstance(value, str):
+                parent[key] = [value]
+
         # fix empty structs {}, they should be null
         if isinstance(parent[key], dict) and not bool(parent[key]):
             parent[key] = None
