@@ -191,11 +191,11 @@ def fix_other_schema_issues(element, table_name):
         if key == 'agreed_to_terms' and table_name =='workspace_member' and parent_path == 'workspace_metadata':
             parent[key] = str(value)
 
-        if key == 'rm_olid' and table_name =='workspace_member' and parent_path == 'workspace_metadata__referrerMeta':
+        if key == 'rm_olid' and table_name =='workspace_member' and (parent_path == 'referrer_metadata' or parent_path == 'workspace_metadata__referrerMeta'):
             if isinstance(value, int):
                 parent[key] = [value]
 
-        if key == 'rm_var' and table_name =='workspace_member' and parent_path == 'workspace_metadata__referrerMeta':
+        if key == 'rm_var' and table_name =='workspace_member' and (parent_path == 'referrer_metadata' or parent_path == 'workspace_metadata__referrerMeta'):
             if isinstance(value, str):
                 parent[key] = [value]
 
@@ -204,6 +204,13 @@ def fix_other_schema_issues(element, table_name):
 
         if key == 'cpa_approved' and table_name =='workspace_member' and parent_path == 'workspace_metadata':
             parent[key] = str(value)
+
+        if key == 'cpa_max_concurrent_jobs' and table_name =='workspace_member' and parent_path == 'workspace_metadata':
+            if isinstance(value, str):
+                if not value:
+                    parent[key] = 0
+                else:
+                    parent[key] = int(value)
 
         # fix fields 'utm_medium, utm_source, utm_campaign' in table job
         if (key == 'utm_medium' or key == 'utm_source' or key == 'utm_campaign') and table_name == 'job' and parent_path == 'members__user__referrer_meta':
