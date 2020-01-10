@@ -188,23 +188,20 @@ def fix_other_schema_issues(element, table_name):
         if key == 'cpa_years_experience' and table_name == 'workspace_member' and parent_path == 'workspace_metadata':
             parent[key] = str(value)
 
+        # fix field 'agreed_to_terms' in table workspace_member
         if key == 'agreed_to_terms' and table_name =='workspace_member' and parent_path == 'workspace_metadata':
             parent[key] = str(value)
 
-        if key == 'rm_olid' and table_name =='workspace_member' and (parent_path == 'referrer_metadata' or parent_path == 'workspace_metadata__referrerMeta'):
-            if isinstance(value, int):
-                parent[key] = [value]
+        # fix fields 'rm_olid, rm_var' in table workspace_member
+        if (key == 'rm_olid' or key == 'rm_var') and table_name =='workspace_member' and (parent_path == 'referrer_metadata' or parent_path == 'workspace_metadata__referrerMeta'):
+            if isinstance(value, list):
+                parent[key] = value[0]
 
-        if key == 'rm_var' and table_name =='workspace_member' and (parent_path == 'referrer_metadata' or parent_path == 'workspace_metadata__referrerMeta'):
-            if isinstance(value, str):
-                parent[key] = [value]
-
-        if key == 'workspace_metadata' and table_name =='workspace_member' and parent_path == 'workspace_metadata':
-            parent[key] = str(value)
-
+        # fix 'cpa_approved' in table workspace_member
         if key == 'cpa_approved' and table_name =='workspace_member' and parent_path == 'workspace_metadata':
             parent[key] = str(value)
 
+        # fix 'cpa_max_concurrent_jobs' in table workspace_member
         if key == 'cpa_max_concurrent_jobs' and table_name =='workspace_member' and parent_path == 'workspace_metadata':
             if isinstance(value, str):
                 if not value:
