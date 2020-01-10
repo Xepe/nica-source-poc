@@ -185,7 +185,24 @@ def fix_other_schema_issues(element, table_name):
                 parent[key] = [value]
 
         # fix field 'cpa_years_experience' in table workspace_member
-        if key == 'cpa_years_experience' and table_name == 'workspace_member' and parent_path == 'workspace_metadata'
+        if key == 'cpa_years_experience' and table_name == 'workspace_member' and parent_path == 'workspace_metadata':
+            parent[key] = str(value)
+
+        if key == 'agreed_to_terms' and table_name =='workspace_member' and parent_path == 'workspace_metadata':
+            parent[key] = str(value)
+
+        if key == 'rm_olid' and table_name =='workspace_member' and parent_path == 'workspace_metadata__referrerMeta':
+            if isinstance(value, int):
+                parent[key] = [value]
+
+        if key == 'rm_var' and table_name =='workspace_member' and parent_path == 'workspace_metadata__referrerMeta':
+            if isinstance(value, str):
+                parent[key] = [value]
+
+        if key == 'workspace_metadata' and table_name =='workspace_member' and parent_path == 'workspace_metadata':
+            parent[key] = str(value)
+
+        if key == 'cpa_approved' and table_name =='workspace_member' and parent_path == 'workspace_metadata':
             parent[key] = str(value)
 
         # fix fields 'utm_medium, utm_source, utm_campaign' in table job
