@@ -140,7 +140,7 @@ resource "null_resource" "reprovisioning-pipeline-code" {
       "sudo pip3 install -r /home/gcp_user/requirements.txt",
       "sudo chmod +x /home/gcp_user/main-df.py"
     ]
-  } 
+  }
 
   depends_on = [tls_private_key.ssh-key, google_compute_instance.default]
 }
@@ -151,8 +151,8 @@ resource "null_resource" "reprovisioning-pipeline-code" {
 resource "null_resource" "reprovisioning-cron-template" {
   count = length(var.regions)
   triggers = {
-    cron_template_sha1   = "${sha1(data.template_file.cron_template[count.index].rendered)}",
-    cron_frequecy_sha1   = "${sha1(local.cron_command)}"
+    cron_template_sha1 = "${sha1(data.template_file.cron_template[count.index].rendered)}",
+    cron_frequecy_sha1 = "${sha1(local.cron_command)}"
   }
 
   connection {
@@ -169,12 +169,12 @@ resource "null_resource" "reprovisioning-cron-template" {
 
   provisioner "remote-exec" {
     inline = [
-      "sudo chmod +x /home/gcp_user/execute_pipeline.sh", 
+      "sudo chmod +x /home/gcp_user/execute_pipeline.sh",
       local.cron_command,
       "sudo systemctl restart cron",
       "sudo crontab -u gcp_user -l"
     ]
-  }  
+  }
 
   depends_on = [tls_private_key.ssh-key, google_compute_instance.default]
 }
