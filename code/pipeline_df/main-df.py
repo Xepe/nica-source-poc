@@ -31,6 +31,7 @@ def get_db_source_config(pipeline_options, database):
     user_options = pipeline_options.view_as(UserOptions)
     return relational_db.SourceConfiguration(
         drivername='postgresql+pg8000',
+        # drivername='postgresql+psycopg2',
         host=str(user_options.db_host),
         port=int(str(user_options.db_port)),
         username=str(user_options.db_user),

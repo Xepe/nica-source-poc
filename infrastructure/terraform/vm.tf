@@ -8,6 +8,33 @@ resource "tls_private_key" "ssh-key" {
   rsa_bits  = 4096
 }
 
+data "template_file" "cron_template" {
+  count  = length(var.regions)
+  template = "${file("./../../code/pipeline_df/cron_template")}"
+  vars = {
+    region_name = "${lower(lookup(var.regions[count.index], "name"))}",
+    service_account_email = google_service_account.service-project-service-account-data-pipeline.email,
+    data_project = var.data_project,
+    temp_location = "gs://${google_storage_bucket.datalake-bucket.*.name[count.index]}/tmp",
+    staging_location = "gs://${google_storage_bucket.code-bucket.name}/binaries-${lookup(var.regions[count.index], "name")}",
+    subnetwork = "https://www.googleapis.com/compute/v1/projects/${var.main_project}/regions/${lookup(var.regions[count.index], "region")}/subnetworks/${var.main_project_sub_network}-${lookup(var.regions[count.index], "name")}",
+    dataflow_region = "${lookup(var.regions[count.index], "dataflow_region")}",
+    dataflow_zone = "${lookup(var.regions[count.index], "dataflow_zone") != "" ? " --zone ${lookup(var.regions[count.index], "dataflow_zone")}" : ""}",
+    requirements_file = "/home/gcp_user/requirements.txt",
+    db_host = "${data.vault_generic_secret.db_creds.data["replica_ip_${lookup(var.regions[count.index], "name")}"]}",
+    db_port = var.db_port,
+    db_user = var.db_user,
+    db_password = "${data.vault_generic_secret.db_creds.data["password_${lookup(var.regions[count.index], "name")}"]}",
+    dest_dataset = "${var.dest_dataset}_${lookup(var.regions[count.index], "name")}",
+    dest_bucket = "${google_storage_bucket.datalake-bucket.*.name[count.index]}",
+    etl_region = "${lookup(var.regions[count.index], "name")}"
+  }
+}
+
+locals {
+  cron_command = "sudo echo '* */4 * * * sudo /bin/bash /home/gcp_user/execute_pipeline.sh' | crontab -"
+}
+
 resource "google_compute_instance" "default" {
   count        = length(var.regions)
   name         = "build-pipeline-send-to-dataflow-${lookup(var.regions[count.index], "name")}"
@@ -62,6 +89,11 @@ resource "google_compute_instance" "default" {
     destination = "/home/gcp_user/database_table_list.json"
   }
 
+  provisioner "file" {
+    content     = data.template_file.cron_template[count.index].rendered
+    destination = "/home/gcp_user/execute_pipeline.sh"
+  }
+
   provisioner "remote-exec" {
     inline = [
       "sudo apt-get update -y",
@@ -71,9 +103,9 @@ resource "google_compute_instance" "default" {
       "sudo apt autoremove -y",
       "sudo apt-get install python3-pip -y",
       "sudo pip3 install -r /home/gcp_user/requirements.txt",
-      "sudo chmod +x /home/gcp_user/main-df.py",
-      "sudo echo '0 */4 * * * sudo /usr/bin/python3 /home/gcp_user/main-df.py --runner DataflowRunner --job_name vm-trigger-pipeline-${lower(lookup(var.regions[count.index], "name"))} --service_account_email ${google_service_account.service-project-service-account-data-pipeline.email} --project ${var.data_project} --temp_location gs://${google_storage_bucket.datalake-bucket.*.name[count.index]}/tmp --staging_location gs://${google_storage_bucket.code-bucket.name}/binaries-${lookup(var.regions[count.index], "name")} --subnetwork https://www.googleapis.com/compute/v1/projects/${var.main_project}/regions/${lookup(var.regions[count.index], "region")}/subnetworks/${var.main_project_sub_network}-${lookup(var.regions[count.index], "name")} --region ${lookup(var.regions[count.index], "dataflow_region")} ${lookup(var.regions[count.index], "dataflow_zone") != "" ? "--zone ${lookup(var.regions[count.index], "dataflow_zone")}" : ""} --requirements_file /home/gcp_user/requirements.txt --db_host ${data.vault_generic_secret.db_creds.data["replica_ip_${lookup(var.regions[count.index], "name")}"]} --db_port ${var.db_port} --db_user ${var.db_user} --db_password ${data.vault_generic_secret.db_creds.data["password_${lookup(var.regions[count.index], "name")}"]} --dest_dataset ${var.dest_dataset}_${lookup(var.regions[count.index], "name")} --dest_bucket ${google_storage_bucket.datalake-bucket.*.name[count.index]} --etl_region ${lookup(var.regions[count.index], "name")} --machine_type n1-standard-4 --no_use_public_ip true' > /home/gcp_user/execute_dataflow",
-      "crontab /home/gcp_user/execute_dataflow",
+      "sudo chmod +x /home/gcp_user/main-df.py",    
+      "sudo chmod +x /home/gcp_user/execute_pipeline.sh", 
+      local.cron_command,
       "sudo systemctl restart cron",
       "sudo crontab -u gcp_user -l"
     ]
