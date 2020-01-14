@@ -32,7 +32,7 @@ data "template_file" "cron_template" {
 }
 
 locals {
-  cron_command = "sudo echo '* */4 * * * sudo /bin/bash /home/gcp_user/execute_pipeline.sh' | crontab -"
+  cron_command = "sudo echo '0 */4 * * * sudo /bin/bash /home/gcp_user/execute_pipeline.sh' | crontab -"
 }
 
 resource "google_compute_instance" "default" {
