@@ -177,6 +177,7 @@ def check_schema_for_duplicate_keys(schema, errors, parent=None):
         if field['type'] == 'RECORD':
             check_schema_for_duplicate_keys(field['fields'], errors, field['name'])
 
+
 # convert all fields to Nullable to support fields not present in Json objects
 def convert_required_to_nullable(schema):
     for field in schema:
