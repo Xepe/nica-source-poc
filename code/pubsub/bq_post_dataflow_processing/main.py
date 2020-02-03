@@ -177,6 +177,7 @@ def check_schema_for_duplicate_keys(schema, errors, parent=None):
         if field['type'] == 'RECORD':
             check_schema_for_duplicate_keys(field['fields'], errors, field['name'])
 
+
 # convert all fields to Nullable to support fields not present in Json objects
 def convert_required_to_nullable(schema):
     for field in schema:
@@ -205,7 +206,6 @@ def deduce_schema(blob):
 
 # save blobs to staging tables
 def save_blob_to_bigquery_staging_table(bigquery_client, project_id, dataset_id, table_id, blob, etl_region, schema=None, computed_schema=False):
-    row_count = blob.download_as_string().splitlines().__len__()
 
     dataset_ref = bigquery_client.dataset(dataset_id)
     dataset = bigquery_client.get_dataset(dataset_ref.dataset_id)
@@ -217,7 +217,6 @@ def save_blob_to_bigquery_staging_table(bigquery_client, project_id, dataset_id,
         job_config.autodetect = True
     else:
         job_config.schema = schema
-        job_config.max_bad_records = row_count
 
     uri = "gs://{}-staging-{}/{}".format(project_id, etl_region, blob.name)
 
@@ -384,9 +383,9 @@ if __name__ == '__main__':
     # go to https://www.base64encode.org/
     # encode json object. See example
 
-    # {"project": "taxfyle-staging-data", "dest_dataset": "data_warehouse_us", "table" : "billing_method", "etl_region": "us"}
+    # {"project": "taxfyle-production-data", "dest_dataset": "data_warehouse_us", "table" : "job", "etl_region": "us"}
     event = {
-        'data': 'eyJwcm9qZWN0IjogInRheGZ5bGUtc3RhZ2luZy1kYXRhIiwgImRlc3RfZGF0YXNldCI6ICJkYXRhX3dhcmVob3VzZV91cyIsICJ0YWJsZSIgOiAiYmlsbGluZ19tZXRob2QiLCAiZXRsX3JlZ2lvbiI6ICJ1cyJ9'
+        'data': 'eyJwcm9qZWN0IjogInRheGZ5bGUtcHJvZHVjdGlvbi1kYXRhIiwgImRlc3RfZGF0YXNldCI6ICJkYXRhX3dhcmVob3VzZV91cyIsICJ0YWJsZSIgOiAiam9iIiwgImV0bF9yZWdpb24iOiAidXMifQ=='
     }
 
     context = {}

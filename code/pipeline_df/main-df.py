@@ -6,6 +6,7 @@ import apache_beam as beam
 from beam_nuggets.io import relational_db
 from apache_beam.options.pipeline_options import GoogleCloudOptions, PipelineOptions, SetupOptions
 import simplejson as json
+from apache_beam.io.gcp.bigquery import parse_table_schema_from_json
 
 
 class UserOptions(PipelineOptions):
@@ -21,7 +22,8 @@ class UserOptions(PipelineOptions):
 
 
 def load_db_schema():
-    path = '/home/gcp_user/database_table_list.json'
+    import os
+    path = 'database_table_list.json' if os.name == 'nt' else '/home/gcp_user/database_table_list.json'
 
     with open(path) as json_file:
         return json.load(json_file)
@@ -31,6 +33,7 @@ def get_db_source_config(pipeline_options, database):
     user_options = pipeline_options.view_as(UserOptions)
     return relational_db.SourceConfiguration(
         drivername='postgresql+pg8000',
+        # drivername='postgresql+psycopg2',
         host=str(user_options.db_host),
         port=int(str(user_options.db_port)),
         username=str(user_options.db_user),
@@ -123,11 +126,8 @@ def fix_other_schema_issues(element, table_name):
         if key == 'job_specs' and isinstance(value, list) and \
                 (
                     (table_name == 'job' and parent_path is None) or
-                    (table_name == 'job_event' and
-                     (
-                             parent_path == 'data' or
-                             parent_path == 'data__snapshot'
-                     ))
+                    (table_name == 'job_event' and ( parent_path == 'data' or parent_path == 'data__snapshot')) or
+                    (table_name == 'notifications' and parent_path == 'context__job')
                 ):
             parent[key] = [str(v) for v in value]
 
@@ -135,7 +135,8 @@ def fix_other_schema_issues(element, table_name):
         if key == 'stripe_charges' and isinstance(value, list) and \
                 (
                     (table_name == 'job' and parent_path is None) or
-                    (table_name == 'job_event' and parent_path == 'data__snapshot')
+                    (table_name == 'job_event' and parent_path == 'data__snapshot') or
+                    (table_name == 'notifications' and parent_path == 'context__job')
                 ):
             parent[key] = [i for i in value if i]
 
@@ -148,16 +149,8 @@ def fix_other_schema_issues(element, table_name):
                 ):
             parent[key] = convert_value_to_string(value)
 
-        # fix 'data' in tables: legend_version -> to string (remove when save to BigQuery)
-        if key == 'data' and table_name == 'legend_version' and parent_path is None:
-            parent[key] = convert_value_to_string(value)
-
         # fix 'legend' in tables: job_event -> to string
         if key == 'legend' and table_name == 'job_event' and parent_path == 'data__snapshot':
-            parent[key] = convert_value_to_string(value)
-
-        # fix 'legend' in tables: notifications -> to string
-        if key == 'legend' and table_name == 'notifications' and parent_path == 'context__job':
             parent[key] = convert_value_to_string(value)
 
         # fix repeatable elements with null value
@@ -176,6 +169,68 @@ def fix_other_schema_issues(element, table_name):
         # fix 'display_name' in table notifications, field: context.sender.display_name -> to string when is array
         if key == 'display_name' and table_name == 'notifications' and isinstance(value, list) and parent_path == 'context__sender':
             parent[key] = str(value[0])
+
+        # fix fields 'utm_medium, utm_source, utm_campaign' in table workspace_member -> to string array
+        if (key == 'utm_medium' or key == 'utm_source' or key == 'utm_campaign') and table_name == 'workspace_member' and (parent_path == 'referrer_metadata' or parent_path == 'workspace_metadata__referrerMeta'):
+            if not value or value is None:
+                parent[key] = []
+            if isinstance(value, str):
+                parent[key] = [value]
+
+        # fix fields 'rm_olid, rm_var' in table workspace_member
+        if (key == 'rm_olid' or key == 'rm_var') and table_name =='workspace_member' and (parent_path == 'referrer_metadata' or parent_path == 'workspace_metadata__referrerMeta'):
+            if isinstance(value, list):
+                parent[key] = value[0]
+
+        # fix 'cpa_approved','agreed_to_terms', 'cpa_years_experience' in table workspace_member -> to string
+        if (key == 'cpa_approved' or key == 'agreed_to_terms' or key == 'cpa_years_experience') and table_name =='workspace_member' and parent_path == 'workspace_metadata':
+            parent[key] = str(value)
+
+        # fix 'cpa_max_concurrent_jobs' in table workspace_member  -> to int
+        if key == 'cpa_max_concurrent_jobs' and table_name =='workspace_member' and parent_path == 'workspace_metadata':
+            if isinstance(value, str):
+                if not value:
+                    parent[key] = 0
+                else:
+                    parent[key] = int(value)
+
+        # fix fields 'utm_medium, utm_source, utm_campaign' in table job -> to string array
+        if (key == 'utm_medium' or key == 'utm_source' or key == 'utm_campaign') and table_name == 'job' and parent_path == 'members__user__referrer_meta':
+            if not value or value is None:
+                parent[key] = []
+            if isinstance(value, str):
+                parent[key] = [value]
+
+        # fix 'data' in tables: legend_version -> to string
+        if key == 'data' and table_name == 'legend_version' and parent_path is None:
+            parent[key] = convert_value_to_string(value)
+
+        # fix 'data' issues in table job_event related to metadata -> to string
+        if key == 'data' and table_name == 'job_event' and parent_path is None:
+            parent[key] = str(value)
+
+        # fix issues in table job_event related to metadata -> convert 'referrer_meta' to string
+        if key == 'referrer_meta' and table_name == 'job_event' and parent_path == 'triggered_by':
+            parent[key] = str(value)
+
+        # fix issues in table notifications
+        if key == 'referrer_meta' and table_name == 'notifications' and \
+                (
+                        parent_path == 'context__actor' or
+                        parent_path == 'context__job__amendments__creator' or
+                        parent_path == 'context__job__members__user' or
+                        parent_path == 'context__job__providers' or
+                        parent_path == 'context__provider'
+                ):
+            parent[key] = str(value)
+
+        if (
+                key == 'legend' or
+                key == 'customer_referrer_meta' or
+                key == 'provider_referrer_meta' or
+                key == 'claim_lock'
+           ) and table_name == 'notifications' and parent_path == 'context__job':
+            parent[key] = convert_value_to_string(value)
 
         # fix empty structs {}, they should be null
         if isinstance(parent[key], dict) and not bool(parent[key]):
@@ -281,14 +336,23 @@ def run(argv=None):
                     records = p | "Reading records from db/table: {}[{}]".format(d['database'], e['table']['name']) >> relational_db.ReadFromDB(source_config=source_config, table_name=e['table']['name']) \
                                 | "Fixing dates for: {}[{}]".format(d['database'], e['table']['name']) >> beam.Map(fix_dates) \
                                 | "Fixing JSON objects for: {}[{}]".format(d['database'], e['table']['name']) >> beam.Map(fix_jsons) \
-                                | "Fixing other schema issues for: {}[{}]".format(d['database'], e['table']['name']) >> beam.Map(fix_other_schema_issues, e['table']['name']) \
-                                | "Adding extra fields for: {}[{}] ".format(d['database'], e['table']['name']) >> beam.Map(add_extra_fields, etl_region) \
-                                | "Converting to valid BigQuery JSON for: {}[{}] ".format(d['database'], e['table']['name']) >> beam.Map(json.dumps)
+                                | "Fixing schema issues for: {}[{}]".format(d['database'], e['table']['name']) >> beam.Map(fix_other_schema_issues, e['table']['name']) \
+                                | "Adding extra fields for: {}[{}] ".format(d['database'], e['table']['name']) >> beam.Map(add_extra_fields, etl_region)
 
-                    records | "Writing records to raw storage for: {}[{}]".format(d['database'], e['table']['name']) >> beam.io.WriteToText('{}/{}/{}/{}.jsonl'.format(gcp_bucket, e['database'], timestamp, e['table']['name']))
+                    if 'schema' in e['table']:
+                        records | "Writing records to BQ for: {}[{}]".format(d['database'], '{}_testing'.format(e['table']['name'])) >> beam.io.WriteToBigQuery('{}:{}.{}'.format(project, dataset, e['table']['name']), schema=parse_table_schema_from_json(json.dumps(e['table']['schema'])), create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED, write_disposition=beam.io.BigQueryDisposition.WRITE_TRUNCATE)
 
-                    records | "Writing records to staging storage for: {}[{}]".format(d['database'], e['table']['name']) >> beam.io.WriteToText('{}/{}.jsonl'.format(staging_bucket, e['table']['name'])) \
-                            | "Sending message to PubSub for: {}[{}]".format(d['database'], e['table']['name']) >> beam.Map(publish_to_pubsub, project, dataset, e['table']['name'], etl_region, bq_post_dataflow_processing_topic)
+                        records | "Converting to valid BigQuery JSON for: {}[{}] ".format(d['database'], e['table']['name']) >> beam.Map(json.dumps) \
+                                | "Writing records to raw storage for: {}[{}]".format(d['database'], e['table']['name']) >> beam.io.WriteToText('{}/{}/{}/{}.jsonl'.format(gcp_bucket, e['database'], timestamp, e['table']['name']))
+                    else:
+
+                        records = records | "Converting to valid BigQuery JSON for: {}[{}] ".format(d['database'], e['table']['name']) >> beam.Map(json.dumps)
+
+                        records | "Writing records to raw storage for: {}[{}]".format(d['database'], e['table']['name']) >> beam.io.WriteToText('{}/{}/{}/{}.jsonl'.format(gcp_bucket, e['database'], timestamp, e['table']['name']))
+
+                        records | "Writing records to staging storage for: {}[{}]".format(d['database'], e['table']['name']) >> beam.io.WriteToText('{}/{}.jsonl'.format(staging_bucket, e['table']['name'])) \
+                                | "Sending message to PubSub for: {}[{}]".format(d['database'], e['table']['name']) >> beam.Map(publish_to_pubsub, project, dataset, e['table']['name'], etl_region, bq_post_dataflow_processing_topic)
+
 
         # clean up binaries
         publish_to_cleanup_pubsub(project, etl_region, df_cleanup_topic)
