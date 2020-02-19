@@ -5,6 +5,17 @@ resource "google_storage_bucket" "datalake-bucket" {
   project       = var.data_project
   location      = lookup(var.regions[count.index], "region")
   force_destroy = false
+  lifecycle_rule {
+    action {
+      type          = "SetStorageClass"
+      storage_class = "COLDLINE"
+
+    }
+    condition {
+      age        = 3 
+      with_state = "LIVE"
+    }
+  }
 }
 
 # Bucket for code
