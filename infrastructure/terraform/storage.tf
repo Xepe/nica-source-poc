@@ -16,6 +16,16 @@ resource "google_storage_bucket" "datalake-bucket" {
       with_state = "LIVE"
     }
   }
+  lifecycle_rule {
+    action {
+      type          = var.cluster_name != "production" ? "Delete" : "SetStorageClass"
+      storage_class = var.cluster_name != "production" ? "" : "COLDLINE"
+    }
+    condition {
+      age        = 7
+      with_state = "LIVE"
+    }
+  }
 }
 
 # Bucket for code
