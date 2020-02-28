@@ -2,16 +2,11 @@ import io
 from zipfile import ZipFile
 import logging
 import json
+from collections import namedtuple
 
 from google.cloud import storage
 
 client = storage.Client()
-
-input_bucket_name = 'job-exports'
-output_bucket_name = 'taxfyle-qa-data-datalake-us'
-
-input_bucket = client.get_bucket(input_bucket_name)
-output_bucket = client.get_bucket(output_bucket_name)
 
 
 def extract_json_files_and_move_to_bucket(request):
@@ -26,10 +21,16 @@ def extract_json_files_and_move_to_bucket(request):
     request_json = request.get_json()
 
     # 'raw/historical_jobs_2017-2019'
+    input_bucket_name = request_json['input_bucket_name']
+    output_bucket_name = request_json['output_bucket_name']
+
     folder_prefix = request_json['unzip_location']
     action = request_json['action']
     prefix = request_json['prefix']  # job-exports_2019-07-23.zip
     file_type = request_json['file_type']
+
+    input_bucket = client.get_bucket(input_bucket_name)
+    output_bucket = client.get_bucket(output_bucket_name)
 
     dataset_name = '{}/{}'.format(folder_prefix, 'dataset.json')
     dataset = []
@@ -90,4 +91,20 @@ def extract_json_files_and_move_to_bucket(request):
 
 
 if __name__ == "__main__":
-    extract_json_files_and_move_to_bucket({})
+
+    Request = namedtuple('Request', [
+        'get_json'
+    ])
+
+    request = Request(
+        get_json=lambda: {
+            'input_bucket_name': '',
+            'output_bucket_name': '',
+            'unzip_location': '',
+            'action': '',
+            'prefix': '',
+            'file_type': ''
+        }
+    )
+
+    extract_json_files_and_move_to_bucket(request)
