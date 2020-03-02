@@ -13,10 +13,15 @@ def extract_json_files_and_move_to_bucket(request):
     """ Triggers from http request.
     This cloud function unzip json and pdf files from a given list of prefixes
 
-    prefix:  it represent a string with the filename to unzip
-    file_type: it represent the files to unzip, it could be '.json' or '.pdf'
+    prefix:  it represents a string with the filename to unzip
+    file_type: it represents the files to unzip, it could be '.json' or '.pdf'
     action: it could be 'unzip' or 'merge', the merge only is used with
     file_type ='.json'
+    input_bucket_name: it represents the bucket name where the source files are
+    localled
+    output_bucket: it represents bucket name where the files will be saved
+    folder_prefix: it represents the folder location where the file will be
+    saved inside the output_bucket
     """
     request_json = request.get_json()
 
